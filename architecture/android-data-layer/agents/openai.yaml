@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android Data Layer"
+  short_description: "Build repositories, data sources, and offline sync"

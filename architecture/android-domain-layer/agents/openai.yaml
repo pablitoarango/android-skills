@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android Domain Layer"
+  short_description: "Design focused use cases for Android business logic"

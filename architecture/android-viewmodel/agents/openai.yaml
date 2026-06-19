@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android ViewModel"
+  short_description: "Manage UI state and events with ViewModels and StateFlow"
