@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Accessibility"
+  short_description: "Improve Compose accessibility and TalkBack support"

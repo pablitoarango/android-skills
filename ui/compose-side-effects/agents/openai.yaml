@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Side Effects"
+  short_description: "Manage Compose effects, listeners, and state reactions"

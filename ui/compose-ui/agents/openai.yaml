@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose UI"
+  short_description: "Build Compose components, state, themes, and previews"

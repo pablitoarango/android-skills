@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Lists"
+  short_description: "Build Compose lazy lists, grids, pagers, and paging"

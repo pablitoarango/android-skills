@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Performance"
+  short_description: "Measure and fix Compose jank, recomposition, and startup"

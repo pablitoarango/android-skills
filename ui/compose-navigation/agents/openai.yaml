@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Navigation"
+  short_description: "Build Compose navigation, back stacks, and deep links"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Images"
+  short_description: "Load and size images in Compose with Coil"
