@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android Retrofit"
+  short_description: "Build Retrofit APIs and remote data sources"

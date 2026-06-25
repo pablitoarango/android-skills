@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android Coroutines"
+  short_description: "Write and debug Android coroutines and Flow"
