@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compose Testing"
+  short_description: "Test Compose UI behavior, semantics, and state restoration"

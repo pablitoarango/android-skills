@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android Testing"
+  short_description: "Plan and write Android unit, integration, and screenshot tests"

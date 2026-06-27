@@ -1,0 +1,3 @@
+interface:
+  display_name: "Android Emulator"
+  short_description: "Run and inspect Android apps on emulators and devices"
