@@ -1,0 +1,3 @@
+interface:
+  display_name: "Gradle Build Performance"
+  short_description: "Profile and improve Android Gradle build speed"
