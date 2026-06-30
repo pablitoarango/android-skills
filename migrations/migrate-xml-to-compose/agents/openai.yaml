@@ -1,0 +1,3 @@
+interface:
+  display_name: "Migrate XML to Compose"
+  short_description: "Migrate Android Views and XML layouts to Compose"
