@@ -1,0 +1,20 @@
+{
+  "name": "android-skills",
+  "displayName": "Android Skills",
+  "version": "1.0.0",
+  "description": "Agent skills for modern Android development with Kotlin and Jetpack Compose, aligned with Google's official documentation.",
+  "author": {
+    "name": "Pablo Arango"
+  },
+  "repository": "https://github.com/pablitoarango/android-skills",
+  "license": "MIT",
+  "keywords": ["android", "kotlin", "jetpack-compose", "architecture", "testing", "gradle"],
+  "skills": [
+    "./architecture/",
+    "./ui/",
+    "./async/",
+    "./testing/",
+    "./build/",
+    "./migrations/"
+  ]
+}

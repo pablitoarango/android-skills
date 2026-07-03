@@ -1,0 +1,16 @@
+{
+  "name": "android-skills",
+  "owner": {
+    "name": "Pablo Arango"
+  },
+  "metadata": {
+    "description": "Android development skills for Kotlin and Jetpack Compose, aligned with Google's official documentation."
+  },
+  "plugins": [
+    {
+      "name": "android-skills",
+      "source": "./",
+      "description": "Agent skills for modern Android development with Kotlin and Jetpack Compose, aligned with Google's official documentation."
+    }
+  ]
+}
