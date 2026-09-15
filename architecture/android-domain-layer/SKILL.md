@@ -1,6 +1,6 @@
 ---
 name: android-domain-layer
-description: "Use cases per Google's domain layer guide: when to add one, naming, operator invoke, main-safety, lifetime, testing. Use when creating, reviewing, or deciding whether to add a use case."
+description: "Use cases per Google's domain layer guide: when to add one, naming, operator invoke, main-safety, lifetime, testing. Use when creating, reviewing, or deciding whether to add a use case, and when business logic is duplicated across ViewModels or one ViewModel combines too many repositories."
 ---
 
 # Android Domain Layer

@@ -1,6 +1,6 @@
 ---
 name: compose-performance
-description: "Compose performance per Google's docs: release builds with R8 and Baseline Profiles, composition tracing, Layout Inspector recomposition counts, Macrobenchmark and JankStats, phases and deferred reads, backwards writes, stability and strong skipping. Use for jank, slow startup or scrolling, or excessive recompositions."
+description: "Compose performance per Google's docs: R8 release builds, Baseline Profiles, composition tracing, recomposition counts, Macrobenchmark, JankStats, phases and deferred reads, backwards writes, stability and strong skipping. Use for jank, slow startup or scrolling, composables recomposing every frame or endlessly, one-frame layout flicker, or unstable parameters."
 ---
 
 # Jetpack Compose performance

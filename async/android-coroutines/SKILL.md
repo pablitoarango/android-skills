@@ -1,6 +1,6 @@
 ---
 name: android-coroutines
-description: "Coroutines and Flow per Google's best practices and the Kotlin coroutines guide: dispatchers, main-safety, scopes, Flow context and sharing, lifecycle collection, cancellation, timeouts, exceptions, shared state, testing, plus a concurrency review guide. Use for async code, ANRs, leaks, races, cancellation bugs, or coroutine tests."
+description: "Coroutines and Flow per Google's best practices and the Kotlin coroutines guide: dispatchers, main-safety, scopes, Flow, lifecycle collection, cancellation, exceptions, shared state, testing, concurrency reviews. Use for async code or coroutine tests, and for ANRs, leaks, races, hangs, viewModelScope crashes, silently lost errors, work that ignores cancellation, or runTest timeouts."
 ---
 
 # Android Coroutines

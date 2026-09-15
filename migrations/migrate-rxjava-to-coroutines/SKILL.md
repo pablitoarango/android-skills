@@ -1,6 +1,6 @@
 ---
 name: migrate-rxjava-to-coroutines
-description: "RxJava to coroutines and Flow migration: type and operator mappings, threading, UI state instead of view callbacks, interop adapters, test migration. Use when converting Singles, Observables, Subjects, or Rx chains."
+description: "RxJava to coroutines and Flow migration: type and operator mappings, threading, UI state instead of view callbacks, interop adapters, test migration. Use when converting Singles, Observables, Flowables, Subjects, Disposables, subscribeOn/observeOn chains or RxJava tests, or when Rx and coroutine code must interoperate mid-migration."
 ---
 
 # RxJava to Kotlin Coroutines Migration

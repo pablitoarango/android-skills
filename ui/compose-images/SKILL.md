@@ -1,6 +1,6 @@
 ---
 name: compose-images
-description: "Images in Compose per Google's image docs and Coil 3: painterResource vs AsyncImage, dependencies, sizing and downsampling, lists, painter state, the singleton ImageLoader with OkHttp and caching, previews, tests. Use when loading network, file or resource images in Compose."
+description: "Images in Compose per Google's image docs and Coil 3: painterResource vs AsyncImage, dependencies, sizing and downsampling, lists, painter state, the ImageLoader with OkHttp and caching, previews, tests. Use when loading network, file or resource images, and when URLs never load, images use too much memory, lists jump as images arrive, or previews show no image."
 ---
 
 # Loading Images in Compose

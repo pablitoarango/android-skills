@@ -1,6 +1,6 @@
 ---
 name: android-viewmodel
-description: "ViewModels and UI state per Google's UI layer guide: StateFlow with stateIn, events modeled as state, lifecycle-aware collection. Use for ViewModels, UI state classes, snackbars, navigation triggers, or one-off events."
+description: "ViewModels and UI state per Google's UI layer guide: StateFlow with stateIn, events modeled as state, lifecycle-aware collection. Use for ViewModels, UI state classes, snackbars, navigation triggers, or one-off events, and when a SharedFlow or Channel event is lost or handled twice, a snackbar shows twice or never, or navigation fires again on return."
 ---
 
 # Android ViewModel and UI State

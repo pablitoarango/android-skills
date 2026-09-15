@@ -1,6 +1,6 @@
 ---
 name: compose-lists
-description: "Lazy lists, grids and pagers per Google's docs: keys, contentType, item animations, Paging, scroll state, list pitfalls. Use for scrolling lists, grids, carousels, pagers, or RecyclerView and ViewPager replacements."
+description: "Lazy lists, grids and pagers per Google's docs: keys, contentType, item animations, Paging, scroll state, list pitfalls. Use for scrolling lists, grids, carousels, pagers, or RecyclerView and ViewPager replacements, and when items jump or swap state, scroll position resets, or nested scrolling crashes with infinity maximum height constraints."
 ---
 
 # Compose Lists, Grids and Pagers

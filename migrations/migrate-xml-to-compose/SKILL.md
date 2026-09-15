@@ -1,6 +1,6 @@
 ---
 name: migrate-xml-to-compose
-description: "Views to Compose migration per Google's strategy: incremental order, ComposeView and AndroidView interop, layout and widget mappings, navigation and theming during migration. Use when converting XML layouts or View screens to Compose."
+description: "Views to Compose migration per Google's strategy: incremental order, ComposeView and AndroidView interop, layout and widget mappings, navigation and theming during migration. Use when converting XML layouts, Fragments or View screens to Compose, and when mixed screens apply insets twice, break nested scrolling, lose ComposeView state, or drift from the XML theme."
 ---
 
 # XML to Compose Migration

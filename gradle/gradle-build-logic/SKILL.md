@@ -1,6 +1,6 @@
 ---
 name: gradle-build-logic
-description: "Gradle build logic per Google's build docs: settings and repositories, version catalogs, convention plugins in an included build, Kotlin DSL, AGP 9 built-in Kotlin and new DSL, the Compose Compiler plugin. Use for build.gradle.kts, settings.gradle.kts, convention plugin, or libs.versions.toml changes."
+description: "Gradle build logic per Google's build docs: settings and repositories, version catalogs, convention plugins, Kotlin DSL, AGP 9 built-in Kotlin and new DSL, the Compose Compiler plugin. Use for build.gradle.kts, settings.gradle.kts, convention plugin, or libs.versions.toml changes, and for AGP 9 upgrade errors (kotlinOptions, kapt, applicationVariants) or config copied between modules."
 ---
 
 # Android Gradle Build Logic

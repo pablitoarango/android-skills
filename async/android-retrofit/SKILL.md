@@ -1,6 +1,6 @@
 ---
 name: android-retrofit
-description: "Retrofit and OkHttp networking per the Retrofit docs and Google's data layer guide: service declarations, suspend return types, remote data sources, network models, Hilt and OkHttp setup, interceptors, auth, logging, errors, R8, MockWebServer tests. Use when adding or changing HTTP API calls, interceptors, or network error handling."
+description: "Retrofit and OkHttp per the Retrofit docs and Google's data layer guide: service declarations, return types, remote data sources, Hilt and OkHttp setup, interceptors, auth, logging, errors, R8, MockWebServer tests. Use when adding or changing HTTP calls, and for 401 refresh loops, KotlinNullPointerException on empty bodies, SerializationException, dropped base URL paths, or release-only failures."
 ---
 
 # Retrofit and OkHttp in the Data Layer

@@ -1,6 +1,6 @@
 ---
 name: compose-adaptive-layouts
-description: "Adaptive Compose layouts per Google's docs: window size classes, list-detail and supporting panes, NavigationSuiteScaffold, state across resizing. Use when UI must work on tablets, foldables, desktop windows, or rotation."
+description: "Adaptive Compose layouts per Google's docs: window size classes, list-detail and supporting panes, NavigationSuiteScaffold, state across resizing. Use when UI must work on tablets, foldables, desktop windows, or rotation, and when layouts stretch on large screens, code checks isTablet or locks orientation, or state is lost on resize or fold."
 ---
 
 # Compose Adaptive Layouts

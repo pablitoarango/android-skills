@@ -1,6 +1,6 @@
 ---
 name: gradle-build-performance
-description: "Gradle build speed per Google's docs: Build Analyzer, gradle-profiler, configuration cache, build cache and remote CI cache, KSP, heap and GC tuning, AGP 9 defaults, Isolated Projects. Use when builds or sync are slow, or configuration time, always-run tasks and cache misses need investigating."
+description: "Gradle build speed per Google's docs: Build Analyzer, gradle-profiler, configuration cache, build cache and remote CI cache, KSP, heap and GC tuning, AGP 9 defaults, Isolated Projects. Use when builds or sync are slow, tasks rerun with no changes, remote cache misses, configuration cache problems appear, kapt dominates, or garbage collection eats build time."
 ---
 
 # Gradle Build Performance

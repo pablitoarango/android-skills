@@ -1,6 +1,6 @@
 ---
 name: compose-testing
-description: "Compose UI tests per Google's docs: test rules, semantics finders, merged trees, synchronization, state restoration, configuration overrides, accessibility checks. Use when writing or debugging Compose UI or component tests."
+description: "Compose UI tests per Google's docs: test rules, semantics finders, merged trees, synchronization, state restoration, configuration overrides, accessibility checks. Use when writing or debugging Compose UI or component tests, including nodes not found or matched several times, children hidden by merging, off-screen lazy items, sleeps, and flaky waits for async data."
 ---
 
 # Compose UI Testing

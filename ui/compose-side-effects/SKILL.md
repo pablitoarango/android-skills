@@ -1,6 +1,6 @@
 ---
 name: compose-side-effects
-description: "Compose effects per Google's docs: LaunchedEffect keys, rememberCoroutineScope, rememberUpdatedState, DisposableEffect, produceState, derivedStateOf, snapshotFlow. Use when a composable launches work, registers listeners, or reacts to state."
+description: "Compose effects per Google's docs: LaunchedEffect keys, rememberCoroutineScope, rememberUpdatedState, DisposableEffect, produceState, derivedStateOf, snapshotFlow. Use when a composable launches work, registers listeners, or reacts to state, and when an effect restarts too often or reads stale values, a listener leaks, or animating from viewModelScope throws a MonotonicFrameClock error."
 ---
 
 # Compose Side Effects

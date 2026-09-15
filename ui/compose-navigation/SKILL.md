@@ -1,6 +1,6 @@
 ---
 name: compose-navigation
-description: "Navigation 3 per Google's docs: NavKey back stacks, NavDisplay, entry decorators and lifecycle, Hilt ViewModel keys, scenes (dialogs, list-detail), transitions, results, deep link matchers, modular features, Navigation 2 migration. Use for screen navigation, back stack or deep link work, or migrating from Navigation Compose."
+description: "Navigation 3 per Google's docs: NavKey back stacks, NavDisplay, entry decorators, Hilt ViewModel keys, scenes, transitions, results, deep links, modular features, Navigation 2 migration. Use for navigation, back stack or deep link work, or migrating from Navigation Compose, and when double taps push twice, entries share a ViewModel, state or back stack is lost, or Back skips deep link parents."
 ---
 
 # Navigation 3

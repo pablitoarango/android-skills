@@ -1,6 +1,6 @@
 ---
 name: compose-accessibility
-description: "Compose accessibility per Google's docs: API defaults, touch targets, labels, semantics properties (headings, live regions, errors, state), merging and clearing, custom actions, traversal order, text scaling, contrast, debugging, automated checks. Use for TalkBack or Switch Access support and accessibility audits."
+description: "Compose accessibility per Google's docs: API defaults, touch targets, labels, semantics, merging and clearing, custom actions, traversal order, text scaling, contrast, automated checks. Use for TalkBack or Switch Access support and audits, and when TalkBack skips elements or reads them out of order, touch targets are too small, text clips at large font sizes, or Accessibility Scanner flags issues."
 ---
 
 # Accessible Compose UI

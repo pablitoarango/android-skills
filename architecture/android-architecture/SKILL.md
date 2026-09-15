@@ -1,6 +1,6 @@
 ---
 name: android-architecture
-description: "Android app architecture per Google's guide: layers and dependency direction, Hilt, modularization, models per layer, naming. Use for project structure, where code belongs, module setup, or dependency injection."
+description: "Android app architecture per Google's guide: layers and dependency direction, Hilt, modularization, models per layer, naming. Use for project structure, where code belongs, module setup, or dependency injection, and when UI calls DAOs or APIs directly, features depend on each other's internals, or classes cannot be tested in isolation."
 ---
 
 # Android App Architecture

@@ -1,6 +1,6 @@
 ---
 name: compose-ui
-description: "Compose UI fundamentals per Google's docs: remember and saveable state, where to hoist state, screen vs reusable composables, Compose API guideline conventions, modifiers, lifecycle effects, CompositionLocal, Material 3 theming, resources, previews. Use when writing, reviewing or refactoring composables."
+description: "Compose UI fundamentals per Google's docs: remember and saveable state, state hoisting, API conventions, modifiers, lifecycle effects, CompositionLocal, Material 3 theming, resources, previews. Use when writing, reviewing or refactoring composables, and when state resets on rotation, UI ignores list changes, modifier order looks wrong, dark theme breaks, or previews fail."
 ---
 
 # Compose UI Fundamentals

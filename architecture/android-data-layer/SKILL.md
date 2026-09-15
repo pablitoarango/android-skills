@@ -1,6 +1,6 @@
 ---
 name: android-data-layer
-description: "Repositories and data sources per Google's data layer guide: models per layer, main-safety, lifetimes, errors, caching, WorkManager, offline-first sync. Use for repository, data source, Room, DataStore, network, or sync work."
+description: "Repositories and data sources per Google's data layer guide: models per layer, main-safety, lifetimes, errors, caching, WorkManager, offline-first sync. Use for repository, data source, Room, DataStore, network, or sync work, and when saves are cancelled on leaving a screen, work must survive process death, network or database models leak past repositories, or the app must work offline."
 ---
 
 # Android Data Layer

@@ -1,6 +1,6 @@
 ---
 name: android-testing
-description: "Android test strategy per Google's testing docs: test scopes per layer, fakes over mocks, ViewModel and Flow tests, Hilt test bindings, Room in-memory DAO tests, Robolectric, and screenshot tests with Roborazzi or Compose Preview Screenshot Testing. Use when planning or writing unit, integration, Hilt, Room, or screenshot tests."
+description: "Android test strategy per Google's testing docs: test scopes, fakes over mocks, ViewModel and Flow tests, Hilt test bindings, Room DAO tests, Robolectric, Roborazzi and Compose Preview screenshot tests. Use when planning or writing unit, integration, Hilt, Room, or screenshot tests, or when a StateFlow test sees only its initial value or a local test throws Method not mocked."
 ---
 
 # Android Testing

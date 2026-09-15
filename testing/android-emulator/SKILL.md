@@ -1,6 +1,6 @@
 ---
 name: android-emulator
-description: "Run and drive apps on emulators and devices with the Android CLI and adb: start and stop AVDs, install and launch APKs, inspect the UI with android layout, tap and type, screenshots, logcat, Gradle Managed Devices. Use when running, testing or debugging an app on an emulator or device."
+description: "Run and drive apps on emulators and devices with the Android CLI and adb: start and stop AVDs, install and launch APKs, inspect the UI with android layout, tap and type, screenshots, logcat, Gradle Managed Devices. Use when running, testing or debugging an app on a device, reading crash logs, or when adb shows offline or unauthorized devices or CI emulators lack a GPU."
 ---
 
 # Android Emulator
