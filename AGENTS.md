@@ -19,7 +19,7 @@ Agent skills for Android development. Each skill is `<category>/<skill-name>/SKI
 | `ui/` | Compose UI, navigation, images, accessibility, performance |
 | `async/` | Coroutines, Flow, networking |
 | `testing/` | Test strategy, Compose tests, emulator tooling |
-| `build/` | Gradle build logic and build performance |
+| `gradle/` | Gradle build logic and build performance |
 | `migrations/` | Migrations from older APIs |
 
 - Names are kebab-case and start with `android-` (platform and architecture), `compose-` (Compose UI), `gradle-` (build) or `migrate-` (migrations). The folder name and frontmatter `name` must match.

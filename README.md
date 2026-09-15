@@ -41,7 +41,7 @@ Agent skills for modern Android development with Kotlin and Jetpack Compose. Eve
 | `compose-testing` | Compose test rules, finders, synchronization, state restoration, accessibility checks | [Testing Compose](https://developer.android.com/develop/ui/compose/testing) |
 | `android-emulator` | Android CLI and adb for AVDs, deploying APKs, UI layout, input, screenshots, logcat; Gradle Managed Devices | [Android CLI](https://developer.android.com/tools/agents/android-cli), [Emulator command line](https://developer.android.com/studio/run/emulator-commandline), [adb](https://developer.android.com/tools/adb), [Gradle Managed Devices](https://developer.android.com/studio/test/gradle-managed-devices) |
 
-### Build
+### Gradle
 
 | Skill | Covers | Sources |
 |---|---|---|
@@ -57,7 +57,22 @@ Agent skills for modern Android development with Kotlin and Jetpack Compose. Eve
 
 ## Install
 
-Pick one method; using both loads every skill twice.
+Pick one method; combining them loads every skill twice.
+
+### skills.sh (Claude Code, Codex, Cursor and other agents)
+
+```bash
+npx skills add pablitoarango/android-skills --global
+```
+
+The [skills CLI](https://skills.sh) asks which skills and agents to install. Without `--global` it installs into the current project instead of your user directory.
+
+```bash
+npx skills add pablitoarango/android-skills --list
+npx skills add pablitoarango/android-skills --skill compose-ui android-coroutines --global
+npx skills update
+npx skills remove compose-ui
+```
 
 ### Symlinks (Claude Code and other agents)
 

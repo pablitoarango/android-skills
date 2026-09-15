@@ -14,7 +14,7 @@
     "./ui/",
     "./async/",
     "./testing/",
-    "./build/",
+    "./gradle/",
     "./migrations/"
   ]
 }
