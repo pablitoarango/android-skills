@@ -1,7 +1,7 @@
 {
   "name": "android-skills",
   "displayName": "Android Skills",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Agent skills for modern Android development with Kotlin and Jetpack Compose, aligned with Google's official documentation.",
   "author": {
     "name": "Pablo Arango"
