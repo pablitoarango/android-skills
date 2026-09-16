@@ -44,5 +44,39 @@ class SourceHeaderTests(unittest.TestCase):
         self.assertTrue(self.check_skill("Sources of truth: [Other](https://example.com/guide).\n"))
 
 
+class SkillsShJsonTests(unittest.TestCase):
+    NAMES = {"compose-one", "compose-two"}
+
+    def check_config(self, config, write=True):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            if write:
+                (root / "skills.sh.json").write_text(json.dumps(config), encoding="utf-8")
+            with patch.object(validate_skills, "ROOT", root), \
+                    patch.object(validate_skills, "errors", []):
+                validate_skills.check_skills_sh_json(self.NAMES)
+                return list(validate_skills.errors)
+
+    def grouping(self, *skills, title="Group"):
+        return {"groupings": [{"title": title, "skills": list(skills)}]}
+
+    def test_accepts_every_skill_grouped_once(self):
+        self.assertEqual(self.check_config(self.grouping("compose-one", "compose-two")), [])
+
+    def test_rejects_missing_file_and_invalid_shapes(self):
+        self.assertTrue(self.check_config(None, write=False))
+        self.assertTrue(self.check_config({"groupings": []}))
+        self.assertTrue(self.check_config({"groupings": [{"title": "Group", "skills": []}]}))
+
+    def test_rejects_ungrouped_unknown_and_duplicated_skills(self):
+        self.assertTrue(self.check_config(self.grouping("compose-one")))
+        self.assertTrue(self.check_config(self.grouping("compose-one", "compose-two", "compose-gone")))
+        duplicated = {"groupings": [
+            {"title": "A", "skills": ["compose-one", "compose-two"]},
+            {"title": "B", "skills": ["compose-two"]},
+        ]}
+        self.assertTrue(self.check_config(duplicated))
+
+
 if __name__ == "__main__":
     unittest.main()

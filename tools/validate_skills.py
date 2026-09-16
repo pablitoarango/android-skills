@@ -194,11 +194,41 @@ def check_scripts() -> None:
             fail(script, f"PowerShell parse error: {result.stdout.strip() or result.stderr.strip()}")
 
 
+def check_skills_sh_json(names: set[str]) -> None:
+    path = ROOT / "skills.sh.json"
+    if not path.exists():
+        errors.append("skills.sh.json: missing; skills.sh groups the repository page from it")
+        return
+    try:
+        config = json.loads(read_text(path))
+    except json.JSONDecodeError as error:
+        fail(path, f"is not valid JSON: {error}")
+        return
+    groupings = config.get("groupings")
+    if not isinstance(groupings, list) or not groupings:
+        fail(path, "must list at least one grouping")
+        return
+    grouped: list[str] = []
+    for group in groupings:
+        if not isinstance(group, dict) or not group.get("title") or not group.get("skills"):
+            fail(path, "every grouping needs a title and at least one skill")
+            continue
+        grouped.extend(group["skills"])
+    for skill in sorted(set(grouped)):
+        if skill not in names:
+            fail(path, f"groups unknown skill '{skill}'")
+        elif grouped.count(skill) > 1:
+            fail(path, f"lists '{skill}' in more than one grouping")
+    for skill in sorted(names - set(grouped)):
+        fail(path, f"does not group '{skill}'")
+
+
 def main() -> int:
     if yaml is None and os.environ.get("CI"):
         errors.append("PyYAML is required in CI to parse frontmatter (pip install pyyaml)")
     names = check_skills()
     check_markdown(names)
+    check_skills_sh_json(names)
     check_em_dashes()
     check_scripts()
     if errors:

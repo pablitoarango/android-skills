@@ -1,0 +1,63 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Architecture",
+      "description": "App layers and where code belongs: architecture, ViewModels, domain and data.",
+      "skills": [
+        "android-architecture",
+        "android-viewmodel",
+        "android-domain-layer",
+        "android-data-layer"
+      ]
+    },
+    {
+      "title": "UI",
+      "description": "Jetpack Compose: state, lists, navigation, adaptive layouts, images, accessibility and performance.",
+      "skills": [
+        "compose-ui",
+        "compose-side-effects",
+        "compose-lists",
+        "compose-adaptive-layouts",
+        "compose-navigation",
+        "compose-performance",
+        "compose-images",
+        "compose-accessibility"
+      ]
+    },
+    {
+      "title": "Async",
+      "description": "Coroutines, Flow and HTTP networking.",
+      "skills": [
+        "android-coroutines",
+        "android-retrofit"
+      ]
+    },
+    {
+      "title": "Testing",
+      "description": "Test strategy per layer, Compose UI tests, and running apps on emulators and devices.",
+      "skills": [
+        "android-testing",
+        "compose-testing",
+        "android-emulator"
+      ]
+    },
+    {
+      "title": "Gradle",
+      "description": "Build logic, version catalogs, convention plugins and build speed.",
+      "skills": [
+        "gradle-build-logic",
+        "gradle-build-performance"
+      ]
+    },
+    {
+      "title": "Migrations",
+      "description": "Moving off Views and RxJava.",
+      "skills": [
+        "migrate-xml-to-compose",
+        "migrate-rxjava-to-coroutines"
+      ]
+    }
+  ]
+}

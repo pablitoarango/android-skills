@@ -99,6 +99,7 @@ Plugin skills are namespaced, for example `android-skills:compose-ui`.
 <category>/<skill-name>/*.md         reference files loaded only when needed
 <category>/<skill-name>/scripts/     scripts the skill runs
 .claude-plugin/                      plugin and marketplace manifests
+skills.sh.json                       groupings for the skills.sh repository page
 tools/validate_skills.py             checks run locally and in CI
 install.sh                           symlink installer
 ```
@@ -112,7 +113,7 @@ python3 tools/validate_skills.py
 python3 -m unittest discover -s tools/tests -v
 ```
 
-The validator checks frontmatter and names, description length, `SKILL.md` size, the opening Google source links, references between skills, relative links, em dashes, and script syntax/help behavior. Regression tests cover `ui.py` element matching, device targeting and text input quoting, plus source-header validation. CI runs both on every push and pull request.
+The validator checks frontmatter and names, description length, `SKILL.md` size, the opening Google source links, references between skills, relative links, em dashes, `skills.sh.json` groupings, and script syntax/help behavior. Regression tests cover `ui.py` element matching, device targeting and text input quoting, plus source-header and grouping validation. CI runs both on every push and pull request.
 
 ## License
 
