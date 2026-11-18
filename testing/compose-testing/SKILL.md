@@ -5,7 +5,7 @@ description: "Compose UI tests per Google's docs: test rules, semantics finders,
 
 # Compose UI Testing
 
-Sources of truth: [Test your Compose layout](https://developer.android.com/develop/ui/compose/testing), [Testing APIs](https://developer.android.com/develop/ui/compose/testing/apis), [Synchronization](https://developer.android.com/develop/ui/compose/testing/synchronization), [Common patterns](https://developer.android.com/develop/ui/compose/testing/common-patterns), [Accessibility testing](https://developer.android.com/develop/ui/compose/accessibility/testing).
+Sources of truth: [Test your Compose layout](https://developer.android.com/develop/ui/compose/testing), [Testing APIs](https://developer.android.com/develop/ui/compose/testing/apis), [Synchronization](https://developer.android.com/develop/ui/compose/testing/synchronization), [Common patterns](https://developer.android.com/develop/ui/compose/testing/common-patterns), [Accessibility testing](https://developer.android.com/develop/ui/compose/accessibility/testing), [Migrate to v2 testing APIs](https://developer.android.com/develop/ui/compose/testing/migrate-v2), [Interoperability](https://developer.android.com/develop/ui/compose/testing/interoperability), [Robolectric](https://developer.android.com/training/testing/local-tests/robolectric).
 
 If the project defines its own UI test conventions (for example page objects or a mocked HTTP layer for instrumented tests), follow those for that kind of test. For overall test strategy, ViewModel tests and screenshot tests, see `android-testing`.
 
@@ -17,9 +17,18 @@ androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility")
 debugImplementation("androidx.compose.ui:ui-test-manifest")
 testImplementation("androidx.compose.ui:ui-test-junit4")
 testImplementation("org.robolectric:robolectric")
+
+android {
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+}
 ```
 
-- The same test code runs as a local test with Robolectric or as an instrumented test.
+- The same test code runs as a local test with Robolectric or as an instrumented test. Robolectric tests need `isIncludeAndroidResources = true` to load resources.
+- Import the rule factories from `androidx.compose.ui.test.junit4.v2`, and `runComposeUiTest` from `androidx.compose.ui.test.v2`. The v1 versions in `androidx.compose.ui.test.junit4` and `androidx.compose.ui.test` are deprecated; see [Migrate to v2 testing APIs](https://developer.android.com/develop/ui/compose/testing/migrate-v2).
 - `createComposeRule()`: test composables in isolation; no Activity access needed.
 - `createAndroidComposeRule<ComponentActivity>()`: when you also need Activity resources (`composeTestRule.activity.getString(...)`). Use `createAndroidComposeRule<YourActivity>()` for a real screen, including mixed View and Compose screens.
 
@@ -28,6 +37,8 @@ testImplementation("org.robolectric:robolectric")
 Test the stateless screen composable with fixed UI state and fake callbacks, not a composable that creates a ViewModel.
 
 ```kotlin
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+
 class ArticleScreenTest {
 
     @get:Rule
@@ -48,7 +59,9 @@ class ArticleScreenTest {
         val bookmarkLabel = composeTestRule.activity.getString(R.string.bookmark)
         composeTestRule.onNodeWithContentDescription(bookmarkLabel).performClick()
 
-        assertEquals(sampleArticle.id, bookmarkedId)
+        composeTestRule.runOnIdle {
+            assertEquals(sampleArticle.id, bookmarkedId)
+        }
     }
 }
 ```
@@ -84,6 +97,8 @@ Debug with `composeTestRule.onRoot().printToLog("TAG")` (add `useUnmergedTree = 
 
 - Finders, assertions and actions wait until Compose is idle, advancing a **virtual clock** automatically. Do not add `Thread.sleep`.
 - Changing state outside composition has no visible effect until the next synchronizing call.
+- The v2 rules run composition coroutines on a `StandardTestDispatcher`: launched work is queued, not run at once. Before asserting on plain variables or ViewModel state after triggering work, call `composeTestRule.waitForIdle()` or wrap the assertion in `composeTestRule.runOnIdle { }`. With auto-advance off, run queued tasks without moving the clock using `composeTestRule.mainClock.scheduler.runCurrent()`.
+- Do not combine a compose rule with `runTest`; that creates two separate clocks. For coroutine-based tests use `runComposeUiTest { }` from `androidx.compose.ui.test.v2`, whose body already runs in a `runTest` scope that shares the Compose clock.
 - Work Compose cannot see (data loading, background threads) needs `waitUntil`:
 
 ```kotlin
@@ -135,7 +150,7 @@ composeTestRule.setContent {
 
 ## 7. Accessibility checks
 
-Run automated accessibility checks in instrumented UI tests with `ui-test-junit4-accessibility` and an `AndroidComposeTestRule`, such as `createAndroidComposeRule<ComponentActivity>()`. Align Compose artifacts with the project's BOM; check the [Compose UI releases](https://developer.android.com/jetpack/androidx/releases/compose-ui) for API availability. Checks flag missing labels, small touch targets, low contrast and traversal problems.
+Run automated accessibility checks with `ui-test-junit4-accessibility` and an `AndroidComposeTestRule`, such as `createAndroidComposeRule<ComponentActivity>()`. Align Compose artifacts with the project's BOM; check the [Compose UI releases](https://developer.android.com/jetpack/androidx/releases/compose-ui) for API availability. Checks flag missing labels, small touch targets, low contrast and traversal problems.
 
 ```kotlin
 composeTestRule.enableAccessibilityChecks()
@@ -152,6 +167,7 @@ Add a custom `SemanticsPropertyKey` only for values that are hard to match other
 ## 9. Interop
 
 - Espresso and Compose test APIs work together in the same test for mixed screens.
+- When identical Compose content appears in several Views (RecyclerView rows, ViewPager pages), scope the search with `onRootWithViewInteraction(viewInteraction)` on the rule, passing an Espresso `ViewInteraction`, instead of adding test tags. This API is experimental.
 - For UiAutomator, set `Modifier.semantics { testTagsAsResourceId = true }` near the root so test tags are exposed as resource IDs.
 
 ## 10. Checklist

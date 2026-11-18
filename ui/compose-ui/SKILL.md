@@ -5,7 +5,7 @@ description: "Compose UI fundamentals per Google's docs: remember and saveable s
 
 # Compose UI Fundamentals
 
-Sources of truth: [State and Jetpack Compose](https://developer.android.com/develop/ui/compose/state), [Where to hoist state](https://developer.android.com/develop/ui/compose/state-hoisting), [Compose UI architecture](https://developer.android.com/develop/ui/compose/architecture), [State holders and UI state](https://developer.android.com/topic/architecture/ui-layer/stateholders), [Compose API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-api-guidelines.md), [Compose component API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md), [Compose modifiers](https://developer.android.com/develop/ui/compose/modifiers), [Lifecycle in Compose](https://developer.android.com/topic/libraries/architecture/compose), [CompositionLocal](https://developer.android.com/develop/ui/compose/compositionlocal), [Material Design 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3), [Resources in Compose](https://developer.android.com/develop/ui/compose/resources), [Previews](https://developer.android.com/develop/ui/compose/tooling/previews).
+Sources of truth: [State and Jetpack Compose](https://developer.android.com/develop/ui/compose/state), [State lifespans](https://developer.android.com/develop/ui/compose/state-lifespans), [Save UI state in Compose](https://developer.android.com/develop/ui/compose/state-saving), [Where to hoist state](https://developer.android.com/develop/ui/compose/state-hoisting), [Compose UI architecture](https://developer.android.com/develop/ui/compose/architecture), [State holders and UI state](https://developer.android.com/topic/architecture/ui-layer/stateholders), [Compose API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-api-guidelines.md), [Compose component API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md), [Compose modifiers](https://developer.android.com/develop/ui/compose/modifiers), [Lifecycle in Compose](https://developer.android.com/topic/libraries/architecture/compose), [CompositionLocal](https://developer.android.com/develop/ui/compose/compositionlocal), [Material Design 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3), [Resources in Compose](https://developer.android.com/develop/ui/compose/resources), [Material icons](https://developer.android.com/develop/ui/compose/graphics/images/material), [Previews](https://developer.android.com/develop/ui/compose/tooling/previews).
 
 Related skills: `compose-side-effects` (effects and keys), `compose-lists`, `compose-adaptive-layouts`, `compose-performance` (stability, deferred reads), `compose-images`, `compose-accessibility`, `compose-testing`, `android-viewmodel`.
 
@@ -14,9 +14,12 @@ Related skills: `compose-side-effects` (effects and keys), `compose-lists`, `com
 | API | Survives | Notes |
 |---|---|---|
 | `remember { mutableStateOf(x) }` | Recomposition | Dropped when the call leaves the composition |
-| `rememberSaveable { mutableStateOf(x) }` | Recomposition, activity recreation, system-initiated process death | Values must fit a `Bundle`; otherwise `@Parcelize`, `mapSaver` or `listSaver`. Lost when the user dismisses the activity |
+| `retain { ... }` | Recomposition, activity recreation (same instance) | Not process death. For caches and manager objects that cannot be serialized (a media player). Never retain an `Activity`, `Context`, `View`, `Lifecycle`, `ViewModel` or anything referencing one. Artifact `androidx.compose.runtime:runtime-retain` ([releases](https://developer.android.com/jetpack/androidx/releases/compose-runtime)) |
+| `rememberSaveable { mutableStateOf(x) }` | Recomposition, activity recreation, system-initiated process death | Values must fit a `Bundle`; otherwise `@Parcelize`, `mapSaver`, `listSaver` or a custom `Saver`. Lost when the user dismisses the activity |
+| `rememberSerializable { ... }` | Same as `rememberSaveable` | For types marked `@Serializable` (kotlinx.serialization); use `rememberSaveable` for everything else |
 | `remember(key) { ... }` | Until `key` changes (compared with `equals`) | `rememberSaveable` names the same arguments `inputs` |
 
+- Save user input and state the app cannot rebuild (text, scroll position, toggles) with `rememberSaveable` or `rememberSerializable`. The `Bundle` is small and shared across the app: save IDs or keys, not large objects or lists, and reload heavy data from the data layer to avoid `TransactionTooLargeException`.
 - `remember` also caches objects that are expensive to build (brushes, formatters). Key it on every input the object depends on.
 - State must be observable. A `MutableList`, `ArrayList` or a class with plain `var` fields changes silently and the UI shows stale data. Store an immutable `List` in a `MutableState`, or use `mutableStateListOf()`.
 - Convert other observables to `State` in the composable that reads them: `Flow.collectAsStateWithLifecycle()` on Android (`androidx.lifecycle:lifecycle-runtime-compose`), `collectAsState()` only in platform-agnostic code, `LiveData.observeAsState()`, and `produceState` for custom sources.
@@ -89,7 +92,7 @@ class AppState(
 
 @Composable
 fun rememberAppState(
-    windowSizeClass: WindowSizeClass = currentWindowAdaptiveInfo().windowSizeClass,
+    windowSizeClass: WindowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass,
     drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed),
 ): AppState = remember(windowSizeClass, drawerState) {
     AppState(windowSizeClass, drawerState)
@@ -135,7 +138,7 @@ Other parameter rules:
 - No `State<T>` parameters: take `T`, or `() -> T` when the value should be read later (for example only during drawing).
 - Do not add a parameter for something a modifier already expresses, such as `clip` or `padding`. Parameters customize the component's internal behavior.
 - Defaults are public and meaningful. Put several of them in a `<Component>Defaults` object. Do not use `null` to mean "use the default"; `null` is only for real absence, like `contentDescription: String?`.
-- When many related values and callbacks pile up, group them into a hoisted state type: `@Stable`, named after the composable plus `State`, an interface unless it is final, and passed with a remembered default (`state: PlayerBarState = rememberPlayerBarState()`). Never create it internally when a `null` is passed.
+- When many related values and callbacks pile up, group them into a hoisted state type: `@Stable`, named after the composable plus `State`, and passed with a remembered default (`state: PlayerBarState = rememberPlayerBarState()`). Never create it internally when a `null` is passed. Apps use a concrete class until an interface is actually needed; libraries declare it as an interface unless the class is final.
 
 ### Slots
 
@@ -216,9 +219,9 @@ Never put a screen's `ViewModel` or screen data in one. Alternatives, in order o
 
 - Text: `stringResource(R.string.x, args)`; plurals: `pluralStringResource(R.plurals.x, count, count)`, passing the count twice when the string formats it.
 - Resolve text in composables. UI state carries resource IDs or typed values, not a `Context` or pre-formatted strings.
-- `painterResource` loads vector and bitmap drawables (and `ColorDrawable`, `AnimatedVectorDrawable`), decoding on the main thread. Animated vectors: `AnimatedImageVector.animatedVectorResource` with `rememberAnimatedVectorPainter`.
+- `painterResource` loads only vector drawables and raster images (PNG, JPG, WEBP), decoding on the main thread. Other XML drawable types are not supported. Animated vectors: `AnimatedImageVector.animatedVectorResource` with `rememberAnimatedVectorPainter`.
 - `dimensionResource` exists for migrated XML dimensions; new spacing belongs in the design system.
-- `material-icons-extended` is large and slows builds and previews; shrink release builds with R8, or import only the vectors you need.
+- Do not add `material-icons-core` or `material-icons-extended`: Google no longer maintains or recommends them (old look, much slower builds). Download Material Symbols as Android XML from Google Font Icons into `res/drawable` and load them with `painterResource`.
 - Bundled fonts go in `res/font`, combined into a `FontFamily` and used in the theme's `Typography`.
 
 ## 9. Previews
@@ -226,7 +229,7 @@ Never put a screen's `ViewModel` or screen data in one. Alternatives, in order o
 Previews render in Android Studio through Layoutlib: no network, no file access, some `Context` APIs missing, and no way to build a `ViewModel` or a Hilt graph. Google's advice is to define screens by the state they receive and the events they emit, then preview that stateless composable with sample data.
 
 - **(stricter than Google)** Every screen has a preview for each distinct state it can render (content, loading, empty, error), and every reusable component in a shared UI module has at least one preview.
-- Wrap previews in the app theme so colors and typography match the app.
+- Wrap previews in the app theme so colors and typography match the app. Instead of repeating the theme in every preview, implement `PreviewWrapperProvider` once (its `Wrap(content)` applies the theme) and annotate previews or multipreview annotation classes with `@PreviewWrapper(AppThemeWrapper::class)` (`ui-tooling-preview`, see [Compose UI releases](https://developer.android.com/jetpack/androidx/releases/compose-ui)).
 - Built-in multipreview annotations: `@PreviewLightDark`, `@PreviewFontScales`, `@PreviewScreenSizes`, `@PreviewDynamicColors`. For a project-specific set, declare an annotation class carrying several `@Preview` annotations. Stacked multipreview annotations each render their own variants; they are not combined into a cross product.
 - Several data states: a `@PreviewParameter(Provider::class)` parameter backed by a `PreviewParameterProvider<T>`. `limit` caps the count, and overriding `getDisplayName(index)` labels each preview. Back `values` with a `List`.
 - `@Preview` parameters worth knowing: `widthDp`/`heightDp`, `locale`, `fontScale`, `uiMode`, `device` (`"id:..."` or `"spec:width=...,height=...,dpi=..."`), `showBackground` with `backgroundColor` as an ARGB `Long`, `showSystemUi`, and `wallpaper` for dynamic color.

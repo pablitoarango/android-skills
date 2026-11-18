@@ -5,7 +5,7 @@ description: "Android app architecture per Google's guide: layers and dependency
 
 # Android App Architecture
 
-Sources of truth: [Guide to App Architecture](https://developer.android.com/topic/architecture), [Architecture recommendations](https://developer.android.com/topic/architecture/recommendations), [Modularization patterns](https://developer.android.com/topic/modularization/patterns), [Hilt](https://developer.android.com/training/dependency-injection/hilt-android).
+Sources of truth: [Guide to App Architecture](https://developer.android.com/topic/architecture), [Architecture recommendations](https://developer.android.com/topic/architecture/recommendations), [Modularization patterns](https://developer.android.com/topic/modularization/patterns), [Hilt](https://developer.android.com/training/dependency-injection/hilt-android), [Data layer](https://developer.android.com/topic/architecture/data-layer), [Domain layer](https://developer.android.com/topic/architecture/domain-layer), [Modularize navigation code](https://developer.android.com/guide/navigation/navigation-3/modularize).
 
 Rules marked **(stricter than Google)** are deliberate choices that go beyond the guide; follow them too.
 
@@ -19,6 +19,8 @@ Layer-specific detail lives in sibling skills:
 | Repositories, data sources, offline-first | `android-data-layer` |
 | Coroutines and Flow | `android-coroutines` |
 | Navigation | `compose-navigation` |
+| Adaptive and canonical layouts | `compose-adaptive-layouts` |
+| R8, Baseline Profiles, Macrobenchmark | `compose-performance` |
 | Tests | `android-testing` |
 
 ## 1. Principles
@@ -59,20 +61,22 @@ Data layer      repositories (public API) + data sources (internal); owns busine
 ## 3. General practices
 
 - **App components are not data sources.** Activities, services and broadcast receivers only coordinate; they never own or cache data.
-- **Keep Android framework types at the edges.** ViewModels stay independent of `Context`, `Resources` and lifecycle types. Platform-backed data sources and DI providers can receive framework dependencies, using `@ApplicationContext` for app-lived work. Repositories and use cases delegate platform access to those adapters; UI behavior such as `Toast` stays in the UI.
+- **Keep Android framework types at the edges.** ViewModels stay independent of `Context`, `Resources` and lifecycle types. Platform-backed data sources and DI providers can receive framework dependencies, using `@ApplicationContext` for app-lived work. Repositories and use cases delegate platform access to those adapters; UI behavior such as `Toast` stays in the UI. Google's Hilt guide injects `@ApplicationContext` into such classes, and its data layer guide wraps `WorkManager` in a data source.
 - **Types own their concurrency policy.** A class doing blocking work moves it off the main thread itself, so every public API is main-safe.
 - **Persist relevant, fresh data** so the app works offline.
 - **Preserve UI state across configuration changes** (rotation, resizing, folding) with `ViewModel`, `SavedStateHandle` and `rememberSaveable`.
-- **Make every part testable in isolation**: constructor injection plus interfaces at layer boundaries so tests can use fakes.
+- **Make every part testable in isolation**: constructor injection, plus interfaces for classes that talk to external resources (network, disk, platform services) so tests can inject fakes.
 - **Single activity + Jetpack Compose + Navigation 3** for apps with multiple screens.
 
 ## 4. Dependency injection
 
 - Use constructor injection where supported; use Hilt field injection for framework-created components and providers for third-party types.
 - **(Stricter than Google)** Use **Hilt** for all dependency injection. No manual DI containers or service locators.
-    - `@HiltAndroidApp` on the `Application`, `@AndroidEntryPoint` on activities and fragments, `@HiltViewModel` on ViewModels.
+    - `@HiltAndroidApp` on the `Application`, `@AndroidEntryPoint` on the single `ComponentActivity` (and on any `Service` or `BroadcastReceiver` that needs injection), `@HiltViewModel` on ViewModels. Composables need no annotation.
+    - Constructor-inject dependencies into the `@HiltViewModel` and obtain it in the screen composable with `hiltViewModel()`.
     - Bind interfaces to implementations with `@Binds` in an abstract module.
-- **Scope only when necessary.** Scope a binding (for example `@Singleton`) only if the type holds mutable data that must be shared, or is expensive to create (OkHttp, Room database). Use cases, mappers and stateless classes stay unscoped.
+    - The Gradle module that compiles the `Application` (`:app`) must have every Hilt module and constructor-injected class in its transitive dependencies.
+- **Scope only when necessary.** Scope a binding (for example `@Singleton`) only if the type holds mutable data that must be shared, needs synchronization, or is measurably expensive to create and widely used (OkHttp, Room database). Use cases, mappers and stateless classes stay unscoped.
 
 ```kotlin
 @Module
@@ -85,7 +89,7 @@ internal abstract class DataModule {
 
 ## 5. Modularization
 
-Follow Google's [common modularization patterns](https://developer.android.com/topic/modularization/patterns): high cohesion inside a module, low coupling between modules.
+Follow Google's [common modularization patterns](https://developer.android.com/topic/modularization/patterns): high cohesion inside a module, low coupling between modules. The table is an example layout in the style of Now in Android; adapt the names. The feature `api`/`impl` split follows Google's [Navigation 3 modularization guide](https://developer.android.com/guide/navigation/navigation-3/modularize).
 
 | Module type | Contains | Depends on |
 |---|---|---|
@@ -101,7 +105,7 @@ Rules:
 - A **data module** exposes its repositories and keeps co-located data sources, network/database models and mappers `internal`. If sources live in separate `:core:network` or `:core:database` modules, expose only the types their repository consumers need. Kotlin `internal` cannot cross a module boundary; keep those lower-level APIs out of feature dependencies.
 - A **feature module never depends on another feature's `impl`**. Features navigate by depending on the other feature's `:api` keys and exchange IDs, not objects.
 - Prefer `implementation` over `api` in Gradle dependencies, and prefer pure Kotlin/JVM modules when no Android resources or manifest are needed.
-- Split a data module into separate `api`/`impl` modules only when Google's criteria apply: several implementations (for example per build type), capabilities shared across apps, independent teams, or build-time isolation in a large codebase.
+- Split a data module into separate `api`/`impl` modules only when Google's criteria apply: several implementations (for example per build type), capabilities shared across apps, independent teams, or a large or complex codebase that needs smaller, more manageable units.
 - Share build logic with convention plugins and a version catalog (`gradle-build-logic`).
 
 ## 6. Models per layer
@@ -112,10 +116,10 @@ In non-trivial apps, map models at each boundary so every layer only sees what i
 |---|---|---|
 | Network | `NetworkArticle` | Mirrors the API response, `@Serializable`; `internal` when co-located with its repository |
 | Database | `ArticleEntity` | Room `@Entity`; `internal` when co-located with its repository |
-| External (repository output) | `Article` | Trimmed to what the app needs; lives in `:core:model` |
+| External (repository output) | `Article` | Trimmed to what the app needs; in a shared model module such as `:core:model` |
 | UI | `ArticleUiState`, `NewsFeedUiState` | Built by the ViewModel |
 
-Mappers are extension functions next to the source model: `NetworkArticle.asEntity()`, `ArticleEntity.asExternalModel()`.
+One common style, used by Now in Android, writes mappers as extension functions next to the source model: `NetworkArticle.asEntity()`, `ArticleEntity.asExternalModel()`.
 
 ## 7. Naming
 
@@ -135,10 +139,10 @@ Mappers are extension functions next to the source model: `NetworkArticle.asEnti
 
 - [ ] Dependencies point downward only: UI → domain → data.
 - [ ] No UI component touches a data source directly.
-- [ ] Business logic sits in repositories, or in use cases when reused or complex. No pass-through use cases.
+- [ ] Business logic sits in repositories, or in use cases when reused or complex. Avoid pass-through use cases unless the codebase deliberately routes all data access through the domain layer.
 - [ ] Domain code has no `android.*` imports.
 - [ ] Every repository and data source API is main-safe (`suspend` or `Flow`).
 - [ ] ViewModels take no `Context`, `Activity` or `Resources`.
-- [ ] All injection goes through Hilt; scoped bindings are justified by shared mutable state or creation cost.
+- [ ] All injection goes through Hilt; scoped bindings are justified by shared mutable state, synchronization, or measured creation cost.
 - [ ] Co-located data implementation types are `internal`; separate network/database modules expose only the APIs repositories need.
 - [ ] Feature modules depend only on other features' `:api` modules.

@@ -16,7 +16,7 @@ Opt-in: `debounce`, `sample` and `timeout` are `@FlowPreview`; `flatMapConcat`, 
 | `defer { }` | `flow { }` | The builder body already runs again for every collector |
 | `create { emitter -> }` | `callbackFlow { ...; awaitClose { unregister() } }` | See `android-coroutines` for callback wrapping |
 | `empty()` / `never()` / `error(e)` | `emptyFlow()` / `flow { awaitCancellation() }` / `flow { throw e }` | |
-| `interval(period)` | `flow { while (true) { emit(Unit); delay(period) } }` | The channel `ticker` API is `@ObsoleteCoroutinesApi` |
+| `interval(period)` | `flow { var n = 0L; while (true) { delay(period); emit(n++) } }` | Rx waits one period before the first value and emits a `Long` counter. The channel `ticker` API is `@ObsoleteCoroutinesApi` |
 | `timer(delay)` | `delay(d)` in suspend code, or `flow { delay(d); emit(Unit) }` | |
 | `using(open, source, close)` | `flow { val r = open(); try { emitAll(source(r)) } finally { r.close() } }` | |
 
@@ -37,7 +37,7 @@ Opt-in: `debounce`, `sample` and `timeout` are `@FlowPreview`; `flatMapConcat`, 
 | RxJava | Flow | Check |
 |---|---|---|
 | `filter` | `filter` | |
-| `distinctUntilChanged()` | `distinctUntilChanged()` | Redundant on a `StateFlow`, which already skips equal values |
+| `distinctUntilChanged()` | `distinctUntilChanged()` | Remove it on a `StateFlow`, which already skips equal values; on a `StateFlow`-typed receiver the call does not compile |
 | `distinctUntilChanged { it.id }` | `distinctUntilChangedBy { it.id }` | |
 | `take(n)` | `take(n)` | Cancels the upstream after `n` values |
 | `takeWhile(p)` | `takeWhile(p)`, or `transformWhile` to also emit the value that ends it | |
@@ -123,7 +123,7 @@ A Flow emitter suspends until the collector is ready; without an explicit operat
 |---|---|---|
 | `onBackpressureBuffer()` | `buffer()` | Runs the upstream in a separate coroutine with a channel |
 | `onBackpressureBuffer(n)` with an overflow strategy | `buffer(n, BufferOverflow.DROP_OLDEST)` or `DROP_LATEST` | |
-| `onBackpressureLatest()` | `conflate()` | Same as `buffer(0, DROP_OLDEST)`; no effect on a `StateFlow` |
+| `onBackpressureLatest()` | `conflate()` | Same as `buffer(0, DROP_OLDEST)`; does not compile on a `StateFlow`-typed receiver, which is already conflated |
 | `onBackpressureDrop()` | `buffer(0, BufferOverflow.DROP_LATEST)` | Close, not exact: a drop strategy still keeps one buffered element |
 | `observeOn(scheduler)` for buffering | `flowOn` / `buffer` | Adjacent `buffer`, `flowOn` and `conflate` fuse into one channel |
 
@@ -147,7 +147,8 @@ A Flow emitter suspends until the collector is ready; without an explicit operat
 | `onErrorResumeNext { other }` / `onErrorResumeWith(other)` | `catch { emitAll(other) }` | |
 | `onErrorComplete()` | `catch { e -> if (e !is IOException) throw e }` | Completes without emitting |
 | `retry(n)` | `retry(n)` | Never retries cancellation; the optional predicate is `suspend`, so it can `delay` |
-| `retry { e -> p(e) }` / `retryUntil` | `retry { e -> p(e) }` | |
+| `retry { e -> p(e) }` | `retry { e -> p(e) }` | |
+| `retryUntil(stop)` | `retry { !stop() }` | Rx stops when `stop` returns `true`; Flow retries while the predicate returns `true` |
 | `retryWhen` with a backoff timer | `retryWhen { cause, attempt -> ... }` | `attempt` starts at 0; `delay` inside the predicate before returning `true` |
 
 To keep a long-lived stream alive after one failed item (for example, a search that should survive a failed query), catch inside the `mapLatest` / `flatMapLatest` lambda instead of on the outer flow.

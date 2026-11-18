@@ -5,7 +5,7 @@ description: "Compose effects per Google's docs: LaunchedEffect keys, rememberCo
 
 # Compose Side Effects
 
-Sources of truth: [Side-effects in Compose](https://developer.android.com/develop/ui/compose/side-effects), [State](https://developer.android.com/develop/ui/compose/state), [Performance best practices](https://developer.android.com/develop/ui/compose/performance/bestpractices).
+Sources of truth: [Side-effects in Compose](https://developer.android.com/develop/ui/compose/side-effects), [State](https://developer.android.com/develop/ui/compose/state), [Performance best practices](https://developer.android.com/develop/ui/compose/performance/bestpractices), [State lifespans](https://developer.android.com/develop/ui/compose/state-lifespans), [Where to hoist state](https://developer.android.com/develop/ui/compose/state-hoisting), [Lifecycle in Compose](https://developer.android.com/topic/libraries/architecture/compose), [Compose Runtime releases](https://developer.android.com/jetpack/androidx/releases/compose-runtime).
 
 Composables must be **free of side effects**: they only describe UI from their inputs and may run at any time, in any order, as often as every frame. Any work that changes something outside the composition goes through an effect API.
 
@@ -17,13 +17,15 @@ Composables must be **free of side effects**: they only describe UI from their i
 | Launch a coroutine from an event handler (click, gesture) | `rememberCoroutineScope()` |
 | Register something that must be cleaned up (listener, observer, receiver) | `DisposableEffect(keys) { ...; onDispose { } }` |
 | Publish Compose state to non-Compose objects after every successful recomposition | `SideEffect { }` |
+| Fire one-shot work when keys change, with nothing to cancel or clean up | `SideEffect(keys) { }` |
+| Run an effect that follows a `retain`ed object's lifetime instead of the composition's | `RetainedEffect(keys) { }` |
 | Turn a non-Compose source (Flow, callback, repository call) into `State` | `produceState(initial, keys) { }` |
 | Recompose only when a computed value actually changes | `remember { derivedStateOf { } }` |
 | Use Flow operators on Compose state | `snapshotFlow { }` inside `LaunchedEffect` |
 | Start and stop work with the Activity lifecycle | `LifecycleStartEffect` / `LifecycleResumeEffect` (see `compose-ui`) |
 | Observe a ViewModel `StateFlow` | `collectAsStateWithLifecycle()` (see `android-viewmodel`) |
 
-Business logic, data loading and anything that must survive configuration changes belong in the ViewModel, not in an effect.
+Business logic, data loading and screen state belong in the ViewModel, not in an effect. UI-only objects that must survive configuration changes (caches, players, impression trackers) can use `retain` and `RetainedEffect` instead; see [State lifespans](https://developer.android.com/develop/ui/compose/state-lifespans).
 
 ## 2. Keys decide when an effect restarts
 
@@ -52,6 +54,8 @@ fun HomeScreen(
     }
 }
 ```
+
+This example shows how keys work. For real lifecycle work, prefer `LifecycleStartEffect`, `LifecycleResumeEffect` or `LifecycleEventEffect` over a hand-registered observer (see `compose-ui`).
 
 - Too few keys: the effect keeps using stale values (bug).
 - Too many keys: the effect restarts needlessly (wasted work, restarted animations).
@@ -94,7 +98,7 @@ Button(onClick = { scope.launch { snackbarHostState.showSnackbar(message) } }) {
 ```
 
 ### DisposableEffect
-The block must end with `onDispose { }`, and that block must actually undo what the effect did. An empty `onDispose` means you want a different API.
+The block must end with `onDispose { }`, and that block must actually undo what the effect did. An empty `onDispose` means you want a different API, often keyed `SideEffect`.
 
 ### SideEffect
 Runs after every successful recomposition; use it to push Compose state into objects Compose does not manage.
@@ -107,6 +111,8 @@ fun rememberAnalytics(user: User): Analytics {
     return analytics
 }
 ```
+
+Newer Compose Runtime versions add a keyed overload, `SideEffect(keys) { }`, for one-shot work that should run again only when a key changes. Use it instead of a `LaunchedEffect` that never suspends or a `DisposableEffect` with an empty `onDispose`. Check the [Compose Runtime release notes](https://developer.android.com/jetpack/androidx/releases/compose-runtime) for the version that added it.
 
 ### produceState
 Converts a non-Compose source into `State`. Use `awaitDispose { }` to unsubscribe from callback sources.
@@ -135,7 +141,7 @@ When the result changes as often as its inputs, compute it directly:
 val fullName = "$firstName $lastName"
 ```
 
-If a `derivedStateOf` reads a composable parameter that can change, pass it as a `remember` key.
+If a `derivedStateOf` reads a plain composable parameter that can change, pass it as a `remember` key so the derivation does not keep the old value ([When should I use derivedStateOf?](https://medium.com/androiddevelopers/jetpack-compose-when-should-i-use-derivedstateof-63ce7954c11b)). Never pass the snapshot state it reads (such as `listState.firstVisibleItemIndex`) as a key: that recreates the derived state on every change and defeats its purpose.
 
 ### snapshotFlow
 Turns state reads into a cold Flow that emits when the read values change (conflated, like `distinctUntilChanged`).

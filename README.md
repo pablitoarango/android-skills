@@ -113,7 +113,7 @@ python3 tools/validate_skills.py
 python3 -m unittest discover -s tools/tests -v
 ```
 
-The validator checks frontmatter and names, description length, `SKILL.md` size, the opening Google source links, references between skills, relative links, em dashes, `skills.sh.json` groupings, and script syntax/help behavior. Regression tests cover `ui.py` element matching, device targeting and text input quoting, plus source-header and grouping validation. CI runs both on every push and pull request.
+The validator checks frontmatter and names, description length, `SKILL.md` size, the opening Google source links, references between skills, relative links, em dashes, `skills.sh.json` groupings, and script syntax/help behavior. Regression tests cover source-header and grouping validation. CI runs both on every push and pull request.
 
 ## License
 

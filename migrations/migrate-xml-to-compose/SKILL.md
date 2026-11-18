@@ -5,7 +5,7 @@ description: "Views to Compose migration per Google's strategy: incremental orde
 
 # XML to Compose Migration
 
-Sources of truth: [Migration strategy](https://developer.android.com/develop/ui/compose/migrate/strategy), [Compose in Views](https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/compose-in-views), [Views in Compose](https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose), [Other considerations](https://developer.android.com/develop/ui/compose/migrate/other-considerations), [RecyclerView migration](https://developer.android.com/develop/ui/compose/migrate/migration-scenarios/recycler-view), [CoordinatorLayout migration](https://developer.android.com/develop/ui/compose/migrate/migration-scenarios/coordinator-layout), [Navigation migration](https://developer.android.com/develop/ui/compose/migrate/migration-scenarios/navigation), [XML themes to Material 3](https://developer.android.com/develop/ui/compose/designsystems/views-to-compose), [Interoperability testing](https://developer.android.com/develop/ui/compose/testing/interoperability).
+Sources of truth: [Migration strategy](https://developer.android.com/develop/ui/compose/migrate/strategy), [Compose in Views](https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/compose-in-views), [Views in Compose](https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose), [Other considerations](https://developer.android.com/develop/ui/compose/migrate/other-considerations), [RecyclerView migration](https://developer.android.com/develop/ui/compose/migrate/migration-scenarios/recycler-view), [CoordinatorLayout migration](https://developer.android.com/develop/ui/compose/migrate/migration-scenarios/coordinator-layout), [Navigation migration](https://developer.android.com/develop/ui/compose/migrate/migration-scenarios/navigation), [XML themes to Material 3](https://developer.android.com/develop/ui/compose/designsystems/migrate-xml-theme-to-compose), [Nested scrolling interop](https://developer.android.com/develop/ui/compose/touch-input/scroll/nested-scroll-modifiers#nested-scrolling-interop), [Interoperability testing](https://developer.android.com/develop/ui/compose/testing/interoperability).
 
 ## 1. Migration strategy
 
@@ -91,7 +91,7 @@ class ArticleFragment : Fragment() {
 - Give every `ComposeView` on a screen a **unique ID** (define IDs in `res/values/ids.xml` for programmatic views) so saved state works.
 - Preview a composable inside the XML Layout Editor with `tools:composableName` on the `ComposeView`.
 - **Insets:** each `ComposeView` consumes all insets by default. Consume them on the side that owns the outermost layout: with a View root, set `consumeWindowInsets = false` on the `ComposeView`; with a Compose root, consume in Compose and pad `AndroidView`s.
-- **Nested scrolling:** a `ComposeView` inside a cooperating View parent such as `CoordinatorLayout` needs `Modifier.nestedScroll(rememberNestedScrollInteropConnection())` on its content. `RecyclerView` and `ViewPager2` do not implement `NestedScrollingParent3`, so continuous scrolling from a Compose child into them is not possible. See [nested scrolling interop](https://developer.android.com/develop/ui/compose/touch-input/pointer-input/nested-scroll#nested-scrolling-interop).
+- **Nested scrolling:** a `ComposeView` inside a cooperating View parent such as `CoordinatorLayout` needs `Modifier.nestedScroll(rememberNestedScrollInteropConnection())` on its content. `RecyclerView` and `ViewPager2` do not implement `NestedScrollingParent3`, so continuous scrolling from a Compose child into them is not possible. See [nested scrolling interop](https://developer.android.com/develop/ui/compose/touch-input/scroll/nested-scroll-modifiers#nested-scrolling-interop).
 - **Shared components:** wrap a composable used from XML layouts in an `AbstractComposeView` subclass that exposes its inputs as `mutableStateOf` properties and wraps `Content()` in the app theme.
 - When a `ComposeView` lives inside a `RecyclerView`, use RecyclerView 1.3.0 or newer.
 
@@ -113,10 +113,11 @@ fun WebContent(url: String, modifier: Modifier = Modifier) {
 
 The [WebView API](https://developer.android.com/reference/android/webkit/WebView) example shows creation, input updates and cleanup; configure navigation and other browser behavior for the app's requirements.
 
-- `factory` runs once, on the UI thread: create the View and set constant properties there. Never hold a View in `remember` outside `AndroidView`.
+- `factory` runs once, on the UI thread: create the View and set constant properties there. Prefer creating the View there over holding it in `remember` outside `AndroidView`.
 - `update` runs right after `factory` and again whenever state it reads changes.
 - By default, Views are discarded and recreated inside lazy layouts. Pass a non-null `onReset = { view -> ... }` to opt in to reuse; it runs before the View is reused and should clear transient state. `onRelease` runs once when the View leaves the composition for good.
 - `AndroidView` does not clip its View to its bounds; call `View.setClipToOutline` where needed (common for `SurfaceView`).
+- **Nested scrolling:** for a scrolling View (such as a `RecyclerView`) inside a scrollable composable or one using `Modifier.nestedScroll`, call `ViewCompat.setNestedScrollingEnabled(view, true)` on the root View in `factory` so its deltas reach the Compose parent. In the other direction, `rememberNestedScrollInteropConnection()` only forwards deltas from scrollable content; a plain `Box` or `Column` also needs a scrollable modifier.
 - Use `AndroidViewBinding` (`androidx.compose.ui:ui-viewbinding`) only for small legacy XML layouts during migration, not full screens.
 - Use `AndroidFragment<MyFragment>()` only as a temporary step while a screen still depends on a Fragment. In a pager, cap offscreen pages with its `maxLifecycle` parameter (Fragment 1.9.0 or newer).
 - Framework objects stay reachable through `LocalContext`, `LocalConfiguration` and `LocalView`.
@@ -131,7 +132,7 @@ The [WebView API](https://developer.android.com/reference/android/webkit/WebView
 ## 6. Testing
 
 - Use `createAndroidComposeRule<YourActivity>()` for screens mixing Views and Compose. In the same test, Espresso's `onView` finds Views and the rule's finders locate composables (`compose-testing`).
-- For a composable inside a `RecyclerView` row or a `ViewPager` page, locate the container with Espresso first, then scope the Compose assertion to it.
+- For a composable inside a `RecyclerView` row or a `ViewPager` page, locate the container with Espresso first, then scope the Compose search to it with `onRootWithViewInteraction(viewInteraction)` (experimental, `ui-test` 1.12.0 or newer).
 - UiAutomator sees composables by resource ID only after setting `testTagsAsResourceId = true` in semantics near the root.
 - Add UI tests before migrating a screen when none exist, so the migration is covered.
 
@@ -139,10 +140,10 @@ The [WebView API](https://developer.android.com/reference/android/webkit/WebView
 
 - Wrap all Compose content in the app's theme before any Material composable; Material components behave in undefined ways without a `MaterialTheme`. Target Material 3 when the design system allows it.
 - During migration the XML theme and the Compose theme are two sources of truth; change both until the XML theme can be deleted.
-- **Colors** map by role, not by hex name: `colorPrimary` → `primary`, `colorOnPrimary` → `onPrimary`, `colorSurface` → `surface`, `colorOnSurface` → `onSurface`, `colorError` → `error`. Legacy `colorPrimaryVariant` / `colorPrimaryDark` and `colorAccent` need a decision (`primaryContainer`, `secondary` or `tertiary`). Migrate light and dark schemes; Material Theme Builder can generate them.
+- **Colors** map by role, not by hex name: `colorPrimary` → `primary`, `colorOnPrimary` → `onPrimary`, `colorSurface` → `surface`, `colorOnSurface` → `onSurface`, `colorError` → `error`, `android:colorBackground` → `background`. Legacy roles need a decision: `colorPrimaryVariant` / `colorPrimaryDark` → `primaryContainer` or `secondary`, `colorAccent` → `secondary` or `tertiary`. Migrate light and dark schemes; Material Theme Builder can generate them.
 - **Typography**: `TextAppearance.Material3.BodyMedium` becomes `MaterialTheme.typography.bodyMedium`, and so on for each role; custom text appearances become a `Typography` object.
 - **Shapes**: `ShapeAppearance` overlays become a `Shapes` object passed to `MaterialTheme`.
-- **Styles** have no Compose equivalent. Translate a component style into that component's parameters (`ButtonDefaults.buttonColors(...)`, `shape`, `contentPadding`), or into a named composable such as `PrimaryActionButton` when the style is reused.
+- **Styles** have no direct Compose equivalent. Translate a component style into that component's parameters (`ButtonDefaults.buttonColors(...)`, `shape`, `contentPadding`), or into a named composable such as `PrimaryActionButton` when the style is reused.
 - `colorResource` works for static colors only; it flattens color state lists.
 - Copy values from the existing XML theme. Do not invent new ones or hardcode them in composables.
 

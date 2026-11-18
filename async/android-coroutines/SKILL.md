@@ -5,7 +5,7 @@ description: "Coroutines and Flow per Google's best practices and the Kotlin cor
 
 # Android Coroutines
 
-Sources of truth: [Best practices for coroutines in Android](https://developer.android.com/kotlin/coroutines/coroutines-best-practices), [Improve app performance with Kotlin coroutines](https://developer.android.com/kotlin/coroutines/coroutines-adv), [Kotlin flows on Android](https://developer.android.com/kotlin/flow), [StateFlow and SharedFlow](https://developer.android.com/kotlin/flow/stateflow-and-sharedflow), [Lifecycle-aware coroutines](https://developer.android.com/topic/libraries/architecture/coroutines), [Testing coroutines](https://developer.android.com/kotlin/coroutines/test), [Testing flows](https://developer.android.com/kotlin/flow/test), [Kotlin coroutines guide](https://kotlinlang.org/docs/coroutines-guide.html), [kotlinx.coroutines API](https://kotlinlang.org/api/kotlinx.coroutines/).
+Sources of truth: [Best practices for coroutines in Android](https://developer.android.com/kotlin/coroutines/coroutines-best-practices), [Improve app performance with Kotlin coroutines](https://developer.android.com/kotlin/coroutines/coroutines-adv), [Kotlin flows on Android](https://developer.android.com/kotlin/flow), [StateFlow and SharedFlow](https://developer.android.com/kotlin/flow/stateflow-and-sharedflow), [Lifecycle-aware coroutines](https://developer.android.com/topic/libraries/architecture/coroutines), [Lifecycle-aware coroutines (Views)](https://developer.android.com/topic/libraries/architecture/views/coroutines-views), [Testing coroutines](https://developer.android.com/kotlin/coroutines/test), [Testing flows](https://developer.android.com/kotlin/flow/test), [Kotlin coroutines guide](https://kotlinlang.org/docs/coroutines-guide.html), [Coroutine context and dispatchers](https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html), [kotlinx.coroutines API](https://kotlinlang.org/api/kotlinx.coroutines/).
 
 To audit existing code or chase a concurrency bug, use [`review.md`](review.md). Library versions: [kotlinx.coroutines releases](https://github.com/Kotlin/kotlinx.coroutines/releases), [Lifecycle releases](https://developer.android.com/jetpack/androidx/releases/lifecycle).
 
@@ -58,7 +58,7 @@ Every coroutine belongs to a scope, and the scope decides when it is cancelled. 
 | Lifetime of the work | Where to start it |
 |---|---|
 | Only while the screen's state holder exists | `viewModelScope.launch` in the ViewModel |
-| Only while a composable is in composition | `LaunchedEffect` / `rememberCoroutineScope` (see `compose-side-effects`) |
+| Only while a composable is in composition | `LaunchedEffect` / `rememberCoroutineScope` (see `compose-side-effects`). Composition can include off-screen content such as neighboring pager pages; work that needs the screen visible uses `LifecycleStartEffect` / `LifecycleEventEffect` |
 | Only for the duration of one suspend call | `coroutineScope { }` or `supervisorScope { }` inside the function |
 | Must finish even if the user leaves the screen | An injected application `CoroutineScope` |
 | Must finish even if the process dies | WorkManager (see `android-data-layer`) |
@@ -68,7 +68,7 @@ Every coroutine belongs to a scope, and the scope decides when it is cancelled. 
 - Views trigger coroutines only for UI work such as formatting text or decoding an image, not for business logic.
 - Launch from regular functions with `launch`. Use `async` only inside a coroutine for parallel decomposition, and always `await` it: an `async` started from a regular function and never awaited drops its exception silently.
 - **Avoid `GlobalScope`.** It hardcodes an uncontrolled scope, cannot be replaced in tests and cannot carry a shared context. Inject a scope instead. `GlobalScope` also requires `@OptIn(DelicateCoroutinesApi::class)`.
-- Do not pass `Job()` or `SupervisorJob()` to `launch`, `async` or `withContext`. The new Job replaces the parent, so the coroutine is no longer cancelled with its scope.
+- Do not pass `Job()` or `SupervisorJob()` to `launch`, `async` or `withContext`. The new Job replaces the parent, so the coroutine is no longer cancelled with its scope ([Coroutine context and dispatchers](https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html)). Google's coroutines performance page says passing a `Job` "has no effect"; the Kotlin guide shows it detaches the coroutine from its scope.
 
 Parallel decomposition inside a suspend function. `coroutineScope` waits for every child and rethrows the first failure after cancelling the rest:
 

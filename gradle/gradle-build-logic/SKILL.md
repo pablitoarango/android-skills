@@ -5,13 +5,13 @@ description: "Gradle build logic per Google's build docs: settings and repositor
 
 # Android Gradle Build Logic
 
-Sources of truth: [Gradle build overview](https://developer.android.com/build/gradle-build-overview), [Configure your build](https://developer.android.com/build), [Migrate to version catalogs](https://developer.android.com/build/migrate-to-catalogs), [Add build dependencies](https://developer.android.com/build/dependencies), [Modularization patterns](https://developer.android.com/topic/modularization/patterns), [Built-in Kotlin (AGP 9)](https://developer.android.com/build/migrate-to-built-in-kotlin), [AGP 9.0 release notes](https://developer.android.com/build/releases/agp-9-0-0-release-notes), [Compose Compiler Gradle plugin](https://developer.android.com/develop/ui/compose/compiler), [Migrate to KSP](https://developer.android.com/build/migrate-to-ksp). Reference implementation: [Now in Android](https://github.com/android/nowinandroid).
+Sources of truth: [Gradle build overview](https://developer.android.com/build/gradle-build-overview), [Configure your build](https://developer.android.com/build), [Migrate to version catalogs](https://developer.android.com/build/migrate-to-catalogs), [Add build dependencies](https://developer.android.com/build/dependencies), [Modularization patterns](https://developer.android.com/topic/modularization/patterns), [Built-in Kotlin (AGP 9)](https://developer.android.com/build/migrate-to-built-in-kotlin), [AGP 9.0 release notes](https://developer.android.com/build/releases/agp-9-0-0-release-notes), [Compose Compiler Gradle plugin](https://developer.android.com/develop/ui/compose/compiler), [Migrate to KSP](https://developer.android.com/build/migrate-to-ksp), [Java versions in Android builds](https://developer.android.com/build/jdks), [Optimize your build speed](https://developer.android.com/build/optimize-your-build). Reference implementation: [Now in Android](https://github.com/android/nowinandroid).
 
 ## 1. Principles
 
 - **(stricter than Google)** Write build files in **Kotlin DSL** (`*.gradle.kts`). Google strongly recommends Kotlin; this skill requires it.
 - Build files describe **what** a module is: plugins, namespace, dependencies. The **how** (logic, task declarations) belongs in plugins, which can be tested and reused. Google's build overview makes this split explicit.
-- Share configuration through **convention plugins**, never by copying blocks between modules or through `allprojects` / `subprojects`.
+- Share configuration through **convention plugins**, never by copying blocks between modules. **(stricter than Google)** Never through `allprojects` / `subprojects` either.
 - Every plugin and library version is declared once, in the **version catalog**, as a fixed version (dynamic versions such as `2.+` slow builds and make them unpredictable).
 - Take current versions of AGP, Gradle, Kotlin, KSP and libraries from their release pages ([AGP](https://developer.android.com/build/releases/gradle-plugin), [KSP](https://github.com/google/ksp/releases), [Compose BOM](https://developer.android.com/develop/ui/compose/bom)). Never copy a version from a sample.
 
@@ -84,7 +84,7 @@ include(":feature:articles")
 
 - `includeBuild("build-logic")` inside `pluginManagement` is what makes convention plugin IDs resolvable from module `plugins {}` blocks.
 - Repositories are declared only here. `FAIL_ON_PROJECT_REPOS` turns a `repositories {}` block in any module into a build error.
-- Gradle queries repositories in declaration order. The content filter keeps Google Maven from being asked for artifacts it does not host, and `gradlePluginPortal()` goes last. Android Studio's template lists the portal first; Google's build speed guide recommends trying it last, because AGP and most Android plugins live in Google Maven or Maven Central.
+- Gradle queries repositories in declaration order. **(stricter than Google)** Filter Google Maven to the groups it hosts so it is not asked for other artifacts, and put `gradlePluginPortal()` last. Google's settings sample has no filter and lists the portal first; its build speed guide suggests experimenting with the portal last, because Android plugins live in Google Maven or Maven Central.
 - `TYPESAFE_PROJECT_ACCESSORS` generates `projects.core.data` style accessors. Without it, module build files must use `project(":core:data")`.
 - Add a third-party repository only when a dependency needs it, and filter it to that dependency's group.
 
@@ -135,7 +135,7 @@ myapp-hilt = { id = "myapp.hilt" }
 
 ## 5. AGP 9: built-in Kotlin and the new DSL
 
-- **Built-in Kotlin is on by default.** Remove `org.jetbrains.kotlin.android` from module and root build files and from the catalog. Kotlin Multiplatform library modules still use `org.jetbrains.kotlin.multiplatform` with `com.android.kotlin.multiplatform.library`.
+- **Built-in Kotlin is on by default.** Remove `org.jetbrains.kotlin.android` from module and root build files and from the catalog. Kotlin Multiplatform library modules still use `org.jetbrains.kotlin.multiplatform` with `com.android.kotlin.multiplatform.library`; combining the multiplatform plugin with `com.android.library` or `com.android.application` fails with built-in Kotlin.
 - Configure the compiler with top-level `kotlin { compilerOptions { ... } }`; `android.kotlinOptions` is gone. `jvmTarget` defaults to `android.compileOptions.targetCompatibility`, so set it only when it must differ.
 - Extra Kotlin source directories go in `android.sourceSets.named("main") { kotlin.directories += "..." }`. `kotlin.sourceSets` and `java.directories` for Kotlin sources are unsupported. Generated or per-variant directories use `variant.sources.kotlin` in `androidComponents.onVariants`.
 - `org.jetbrains.kotlin.kapt` does not work with built-in Kotlin. Move processors to **KSP** (`ksp(...)` plus `com.google.devtools.ksp`). Processors without KSP support, such as Data Binding, need `com.android.legacy-kapt` at the AGP version; keep them in their own modules.
@@ -222,10 +222,13 @@ internal fun Project.configureAndroid(commonExtension: CommonExtension) {
         compileOptions.sourceCompatibility = JavaVersion.VERSION_17
         compileOptions.targetCompatibility = JavaVersion.VERSION_17
     }
+    extensions.configure<JavaPluginExtension> {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 ```
 
-SDK levels live in the catalog so one edit changes every module.
+SDK levels live in the catalog so one edit changes every module. Google recommends always specifying a Java toolchain, so every machine compiles with the same JDK instead of whichever one runs Gradle.
 
 ### Application and library plugins
 
@@ -245,6 +248,9 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
         pluginManager.apply("com.android.library")
         extensions.configure<LibraryExtension> {
             configureAndroid(this)
+            val targetSdk = libs.findVersion("targetSdk").get().requiredVersion.toInt()
+            testOptions.targetSdk = targetSdk
+            lint.targetSdk = targetSdk
         }
     }
 }
@@ -330,10 +336,10 @@ dependencies {
 
 ## 8. Checklist
 
-- [ ] All build files are Kotlin DSL; module files contain no logic or task declarations.
-- [ ] Repositories exist only in settings, with `FAIL_ON_PROJECT_REPOS`, filtered Google Maven, and the Plugin Portal last.
+- [ ] All build files are Kotlin DSL and every module specifies a Java toolchain; module files contain no logic or task declarations.
+- [ ] Repositories exist only in settings, with `FAIL_ON_PROJECT_REPOS`, filtered Google Maven, and the Plugin Portal last (stricter than Google).
 - [ ] Conventions live in the `build-logic` included build; their plugin artifacts are `compileOnly`.
 - [ ] Every version is fixed and declared once in `libs.versions.toml` with kebab-case aliases; the root build file declares all plugins `apply false`.
-- [ ] AGP 9+: no `org.jetbrains.kotlin.android`, no `kotlinOptions`, no `kotlin-kapt`, no legacy variant API; `targetSdk` set explicitly.
+- [ ] AGP 9+: no `org.jetbrains.kotlin.android`, no `kotlinOptions`, no `kotlin-kapt`, no legacy variant API; `targetSdk` set explicitly for apps and library tests.
 - [ ] Temporary `android.builtInKotlin=false` / `android.newDsl=false` opt-outs have an owner and a removal plan.
 - [ ] Compose modules get the Compose Compiler plugin, `buildFeatures.compose` and the BOM from a convention plugin.

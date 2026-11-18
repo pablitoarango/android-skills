@@ -5,7 +5,7 @@ description: "Images in Compose per Google's image docs and Coil 3: painterResou
 
 # Loading Images in Compose
 
-Sources of truth: [Loading images](https://developer.android.com/develop/ui/compose/graphics/images/loading), [Optimizing bitmap images](https://developer.android.com/develop/ui/compose/graphics/images/optimization), [Lists and grids](https://developer.android.com/develop/ui/compose/lists), and Coil's [Getting started](https://coil-kt.github.io/coil/getting_started/), [Compose](https://coil-kt.github.io/coil/compose/), [Image loaders](https://coil-kt.github.io/coil/image_loaders/), [Network images](https://coil-kt.github.io/coil/network/), [Testing](https://coil-kt.github.io/coil/testing/) and [Upgrading to Coil 3](https://coil-kt.github.io/coil/upgrading_to_coil3/) pages.
+Sources of truth: [Loading images](https://developer.android.com/develop/ui/compose/graphics/images/loading), [Optimizing bitmap images](https://developer.android.com/develop/ui/compose/graphics/images/optimization), [Lists and grids](https://developer.android.com/develop/ui/compose/lists), [Strong skipping mode](https://developer.android.com/develop/ui/compose/performance/stability/strongskipping), and Coil's [Getting started](https://coil-kt.github.io/coil/getting_started/), [Compose](https://coil-kt.github.io/coil/compose/), [Image loaders](https://coil-kt.github.io/coil/image_loaders/), [Network images](https://coil-kt.github.io/coil/network/), [Testing](https://coil-kt.github.io/coil/testing/) and [Upgrading to Coil 3](https://coil-kt.github.io/coil/upgrading_to_coil3/) pages.
 
 Related skills: `compose-lists`, `compose-performance`, `compose-accessibility`, `compose-testing`, `android-retrofit` (the shared OkHttp client).
 
@@ -29,7 +29,7 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp" }
 ```
 
-- Without a network artifact, Coil 3 cannot load `http(s)` URLs; requests fail. Use `coil-network-okhttp` on Android (Ktor variants exist for multiplatform).
+- Without a network artifact, Coil 3 cannot load `http(s)` URLs; requests fail. Use `coil-network-okhttp` on Android (`coil-network-httpengine` uses the platform `HttpEngine` on API 34+; Ktor variants exist for multiplatform). Adding the artifact is enough: Coil's service loader registers the network fetcher automatically.
 - Coil 2 (`io.coil-kt`, package `coil`) is the previous major version. Do not mix it with Coil 3 in new code. Migrating: `ImageLoaderFactory` became `SingletonImageLoader.Factory`, `AsyncImagePainter.state` became a `StateFlow`, and `android.resource://` URIs using resource names no longer load (pass `R.drawable.x`).
 - Since 3.2.0, `coil-compose` requires Java 11 bytecode.
 - Other artifacts: `coil-svg`, `coil-gif`, `coil-video`, `coil-network-cache-control`, `coil-test`. `coil-core` and `coil-compose-core` omit the singleton for apps or libraries that manage their own `ImageLoader`.
@@ -57,7 +57,7 @@ fun AuthorAvatar(author: Author, modifier: Modifier = Modifier) {
 - `placeholder` shows while loading, `error` when the request fails, and `fallback` when the data is `null`. `fallback` defaults to the `error` painter.
 - Build an `ImageRequest` only when you need request options: `ImageRequest.Builder(LocalPlatformContext.current).data(url).crossfade(true).build()`.
 - `AsyncImage` resolves the load size from its layout constraints and `contentScale`. It is the right default because it downsamples correctly.
-- Pass the URL or resource ID into your own image composables, not a `Painter`. `Painter` is not a stable type, so the receiving composable cannot skip recomposition.
+- Pass the URL or resource ID into your own image composables, not a `Painter`. `Painter` is not marked stable, so even with strong skipping the receiving composable only skips when it gets the same instance (`===`), which can cause unnecessary recompositions.
 
 ## 4. Size and memory
 
@@ -76,7 +76,7 @@ Coil 3 caps decoded images at 4096 x 4096 by default to prevent accidental OOMs 
 - Items whose images arrive asynchronously must already have their final size. A 0-pixel item makes the lazy layout compose far too many items on the first pass, then drop them and jump when the images land. Use a fixed size or aspect ratio, and keep it identical before and after loading.
 - `AsyncImage` with `placeholder`/`error` painters is the list default. `SubcomposeAsyncImage` uses subcomposition, which Coil documents as slower and possibly unsuitable for `LazyList`s; measure before using it in scrolling content.
 - Images whose modifiers are the same for every item can share a chain stored outside the item composable (see `compose-performance`).
-- In staggered grids, Google's sample bounds only the width (`fillMaxWidth().wrapContentHeight()`), which is enough for downsampling. Items still grow when the image arrives; if the API provides image dimensions, set `aspectRatio` from them so items keep their size.
+- In staggered grids, Google's sample bounds only the width (`fillMaxWidth().wrapContentHeight()`). Items still grow when the image arrives, and the height is left unconstrained; if the API provides image dimensions, set `aspectRatio` from them so items keep their size and both dimensions are known before the request.
 
 ## 6. When you need the load state or a Painter
 
@@ -136,7 +136,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
 - Reusing the app's `OkHttpClient` shares its connection pool, dispatcher and auth interceptors. Derive image-specific clients with `newBuilder()`.
 - Caches: `memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.25).build() }` and `diskCache { DiskCache.Builder().directory(context.cacheDir.resolve("image_cache")).maxSizePercent(0.02).build() }` tune the defaults.
-- Coil 3 ignores `Cache-Control` response headers and always writes to the disk cache. Add `coil-network-cache-control` and pass `cacheStrategy = { CacheControlCacheStrategy() }` to `OkHttpNetworkFetcherFactory` when the server's headers must be respected.
+- Coil 3 ignores `Cache-Control` response headers and always writes to the disk cache. Add `coil-network-cache-control` and pass `cacheStrategy = { CacheControlCacheStrategy() }` to `OkHttpNetworkFetcherFactory` when the server's headers must be respected. On API 25 and lower (Coil's minimum is 23) this module needs `coreLibraryDesugaring`.
 - Per-request headers: `ImageRequest.Builder.httpHeaders(NetworkHeaders.Builder().set(...).build())`; headers for every request go in an OkHttp interceptor.
 - Preload: `SingletonImageLoader.get(context).enqueue(ImageRequest.Builder(context).data(url).build())` writes the image to the memory and disk caches without displaying it.
 - Logging: `logger(DebugLogger())` on the builder, in debug builds only.

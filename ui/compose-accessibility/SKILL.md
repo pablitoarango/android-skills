@@ -5,7 +5,7 @@ description: "Compose accessibility per Google's docs: API defaults, touch targe
 
 # Accessible Compose UI
 
-Sources of truth: [Accessibility in Jetpack Compose](https://developer.android.com/develop/ui/compose/accessibility), [API defaults](https://developer.android.com/develop/ui/compose/accessibility/api-defaults), [Semantics](https://developer.android.com/develop/ui/compose/accessibility/semantics), [Merging and clearing](https://developer.android.com/develop/ui/compose/accessibility/merging-clearing), [Modify traversal order](https://developer.android.com/develop/ui/compose/accessibility/traversal), [Support user-scalable content](https://developer.android.com/develop/ui/compose/accessibility/scalable-content), [Inspect and debug](https://developer.android.com/develop/ui/compose/accessibility/inspect-debug), [Testing](https://developer.android.com/develop/ui/compose/accessibility/testing), [Make apps more accessible](https://developer.android.com/guide/topics/ui/accessibility/apps), [Principles for improving app accessibility](https://developer.android.com/guide/topics/ui/accessibility/principles), [Non-linear font scaling to 200%](https://developer.android.com/about/versions/14/features#non-linear-font-scaling).
+Sources of truth: [Accessibility in Jetpack Compose](https://developer.android.com/develop/ui/compose/accessibility), [API defaults](https://developer.android.com/develop/ui/compose/accessibility/api-defaults), [Semantics](https://developer.android.com/develop/ui/compose/accessibility/semantics), [Merging and clearing](https://developer.android.com/develop/ui/compose/accessibility/merging-clearing), [Modify traversal order](https://developer.android.com/develop/ui/compose/accessibility/traversal), [Support user-scalable content](https://developer.android.com/develop/ui/compose/accessibility/scalable-content), [Inspect and debug](https://developer.android.com/develop/ui/compose/accessibility/inspect-debug), [Testing](https://developer.android.com/develop/ui/compose/accessibility/testing), [Make apps more accessible](https://developer.android.com/guide/topics/ui/accessibility/apps), [Principles for improving app accessibility](https://developer.android.com/guide/topics/ui/accessibility/principles), [Non-linear font scaling to 200%](https://developer.android.com/about/versions/14/features#non-linear-font-scaling), [minimumInteractiveComponentSize](https://developer.android.com/reference/kotlin/androidx/compose/material3/minimumInteractiveComponentSize.modifier), [Compose test accessibility checks](https://developer.android.com/reference/kotlin/androidx/compose/ui/test/junit4/accessibility/package-summary), [Migrate to v2 testing APIs](https://developer.android.com/develop/ui/compose/testing/migrate-v2).
 
 Related skills: `compose-ui` (color roles, typography), `compose-testing`, `compose-images`, `compose-lists`.
 
@@ -43,7 +43,7 @@ fun NotificationSetting(
 
 - Anything a finger can activate needs a touch area of at least 48 x 48dp. Only precise pointers (mouse, trackpad) may use smaller targets.
 - Material controls add that space only while interactive: `Checkbox(onCheckedChange = null)` has no extra padding, which is correct when its parent row handles the click.
-- When a clickable element is smaller, Compose extends its touch area past its bounds, and neighboring targets can then overlap. Give custom clickables a real minimum size instead: `Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)` before `clickable`, or Material 3's `Modifier.minimumInteractiveComponentSize()`, which reserves 48dp only when the element would measure smaller.
+- When a clickable element is smaller, Compose extends its touch area past its bounds, and neighboring targets can then overlap. Give custom clickables a real minimum size instead: `Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)` before `clickable`, or Material 3's `Modifier.minimumInteractiveComponentSize()`, which reserves 48dp only when the element would measure smaller. That modifier changes layout only: the element keeps its drawn size, and the system still does the touch expansion. Put it before any `size` modifier, or the size constraint limits the space it can reserve.
 - **(stricter than Google)** Do not provide `LocalMinimumInteractiveComponentSize` as `0.dp` to disable Material's enforcement.
 
 ```kotlin
@@ -75,7 +75,7 @@ Prefer `IconButton` when the design allows it; it already handles size, role and
 |---|---|
 | Section title on a text-heavy screen | `heading()`. Screen readers offer heading-to-heading navigation, so users can skip whole sections |
 | Alert, snackbar-like message, content that changes while focus is elsewhere | `liveRegion = LiveRegionMode.Polite`. `Assertive` only for urgent, time-sensitive content. Never on content that updates constantly, such as a countdown |
-| Custom sheet, dialog or panel | `paneTitle = "..."` so pane changes are announced |
+| Custom sheet, dialog or panel | `paneTitle = "..."` so pane changes are announced. Keep titles unique across the app; TalkBack uses them as identifiers, so a generic title reused on unrelated screens ("Details") misbehaves |
 | Invalid input in a custom field | `error("What is wrong and how to fix it")` |
 | Custom progress indicator | `progressBarRangeInfo = ProgressBarRangeInfo(current = progress, range = 0f..1f)` |
 | Custom list or grid not built on lazy layouts | `collectionInfo = CollectionInfo(rowCount, columnCount)` on the container, `collectionItemInfo` on each item |
@@ -120,6 +120,7 @@ fun ReviewHeader(review: Review, modifier: Modifier = Modifier) {
 ```
 
 - `clickable`, `toggleable`, `Button` and `ListItem` merge their children already.
+- In a merged group, only the parent is interactive; do not add `clickable` or `focusable` to the children. Do not write a group `contentDescription` that joins the children's text: it goes stale when a child changes. Let merging collect the children's text.
 - A child that merges itself (its own `clickable`, a nested `IconButton`) is not absorbed by the parent and stays a separate focus stop. That is usually intended; to collapse it, use custom actions (section 6).
 - `clearAndSetSemantics` clears everything that follows it in the modifier chain, whatever the merge settings. Use it sparingly: TalkBack, autofill, tests and AI agents all lose that information.
 - Each semantics property merges by its own policy; content descriptions of merged children are collected into a list.
@@ -182,7 +183,7 @@ fun ComparisonColumns(left: Plan, right: Plan) {
 - Text sizes come from theme typography in `sp`. Since Android 14, users can scale fonts up to 200%, and the system applies a nonlinear curve so large text grows less than small text. Consequences: never derive layout sizes by adding `sp` values (4sp + 20sp is not necessarily 24sp), and do not use `sp` for padding.
 - Containers holding text must grow: no fixed `height` on them (use `heightIn(min = ...)`), allow wrapping, and make sure content reflows without horizontal panning at the largest font and display sizes.
 - Check with `@PreviewFontScales`, `DeviceConfigurationOverride.FontScale(2f)` in tests (see `compose-testing`), and a device set to maximum font size and display size.
-- Reading-heavy or dense visual screens can add in-app pinch-to-zoom. `Modifier.transformable` only detects the gesture; apply the scale by providing a modified `LocalDensity` to the content. Scaling `density` enlarges everything and suits feeds and grids; scaling `fontScale` enlarges only text and suits articles. Google's samples clamp the factor to roughly 0.75x to 3.5x. Persist the choice (DataStore) and offer a non-gesture control to adjust or reset it.
+- Reading-heavy or dense visual screens can add in-app pinch-to-zoom. `Modifier.transformable` only detects the gesture; apply the scale by providing a modified `LocalDensity` to the content. Scaling `density` enlarges everything; use it for feeds and grids, and prefer it for articles too so inline images grow with the text. Scaling `fontScale` enlarges only text, a simpler choice for reading screens where only text needs to grow. Google's samples clamp the factor to roughly 0.75x to 3.5x. Persist the choice (DataStore) and offer a non-gesture control to adjust or reset it.
 
 ## 9. Color and contrast
 
@@ -203,11 +204,15 @@ fun ComparisonColumns(left: Plan, right: Plan) {
 Compose 1.8 added Accessibility Test Framework checks, the engine behind Accessibility Scanner, to Compose UI tests. They report missing labels, small touch targets, low contrast and traversal problems.
 
 - Dependency: `androidx.compose.ui:ui-test-junit4-accessibility`.
-- `enableAccessibilityChecks()` on the `AndroidComposeTestRule` requires API 34 or higher on the test device.
+- `enableAccessibilityChecks()` on the `AndroidComposeTestRule` requires API 34 or higher on the test device. The checks run only in instrumented tests, not under Robolectric.
+- Create the rule with the v2 `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule`; the v1 rule factories are deprecated. Migration: see `compose-testing`.
 - Once enabled, every test action (`performClick`, `performTextInput`) runs the checks; `tryPerformAccessibilityChecks()` runs them explicitly.
 - Pass an `AccessibilityValidator` to change which result types fail the test. The default validator runs checks from the root view; keep `setRunChecksFromRootView(true)` when replacing it.
 
 ```kotlin
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+
 @SdkSuppress(minSdkVersion = 34)
 class PaymentStepAccessibilityTest {
 
@@ -242,4 +247,5 @@ Android Lint also flags images without a `contentDescription`. Semantics asserti
 - [ ] Reading order matches the visual grouping.
 - [ ] Layouts survive 200% font scale and the largest display size without clipping or panning.
 - [ ] Text contrast meets 4.5:1 or 3:1 as applicable; color is never the only cue.
+- [ ] Media has pause or stop, volume and caption controls; video that is vital to a task has a transcript.
 - [ ] TalkBack and Switch Access pass done; accessibility checks run in UI tests.

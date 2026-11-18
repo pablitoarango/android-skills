@@ -5,7 +5,7 @@ description: "Gradle build speed per Google's docs: Build Analyzer, gradle-profi
 
 # Gradle Build Performance
 
-Sources of truth: [Optimize your build speed](https://developer.android.com/build/optimize-your-build), [Profile your build](https://developer.android.com/build/profile-your-build), [Build Analyzer](https://developer.android.com/build/build-analyzer), [Gradle build overview](https://developer.android.com/build/gradle-build-overview), [Migrate to KSP](https://developer.android.com/build/migrate-to-ksp), [Built-in Kotlin (AGP 9)](https://developer.android.com/build/migrate-to-built-in-kotlin), [AGP 9.0 release notes](https://developer.android.com/build/releases/agp-9-0-0-release-notes). Gradle facts: [build cache](https://docs.gradle.org/current/userguide/build_cache.html), [configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html), [Isolated Projects](https://docs.gradle.org/current/userguide/isolated_projects.html), [build environment](https://docs.gradle.org/current/userguide/build_environment.html).
+Sources of truth: [Optimize your build speed](https://developer.android.com/build/optimize-your-build), [Profile your build](https://developer.android.com/build/profile-your-build), [Build Analyzer](https://developer.android.com/build/build-analyzer), [Gradle build overview](https://developer.android.com/build/gradle-build-overview), [Migrate to KSP](https://developer.android.com/build/migrate-to-ksp), [Built-in Kotlin (AGP 9)](https://developer.android.com/build/migrate-to-built-in-kotlin), [AGP 9.0 release notes](https://developer.android.com/build/releases/agp-9-0-0-release-notes). Gradle facts: [build cache](https://docs.gradle.org/current/userguide/build_cache.html), [configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html), [enabling the configuration cache](https://docs.gradle.org/current/userguide/configuration_cache_enabling.html), [Isolated Projects](https://docs.gradle.org/current/userguide/isolated_projects.html), [build environment](https://docs.gradle.org/current/userguide/build_environment.html).
 
 ## How to work on a slow build
 
@@ -84,7 +84,7 @@ Gradle evaluates `settings.gradle.kts`, decides which projects take part, and bu
 
 ### Configuration
 
-Gradle runs every applied build script and plugin and registers tasks. The result is the task graph. Configuration code cannot use files that execution will produce. Unless the configuration cache is reused, this phase runs on every invocation, and IDE sync always runs it.
+Gradle runs every applied build script and plugin and registers tasks. The result is the task graph. Configuration code cannot use files that execution will produce. Unless the configuration cache is reused, this phase runs on every invocation. IDE sync runs it every time unless Isolated Projects is on, which lets Gradle reuse the sync model when the build configuration is unchanged.
 
 - **Looks like:** "Configuring projects" dominates the profile; even `./gradlew help` is slow; sync is slow.
 - **Levers:** the configuration cache; moving logic out of build scripts into tasks (Google's guidance), so it runs only when needed and can be cached; lazy task registration; providers instead of eager reads; no dependency resolution, file reading or network calls while configuring; Isolated Projects for parallel configuration.
@@ -113,15 +113,15 @@ android.enableJetifier=false
 | `org.gradle.configuration-cache` | off | Saves the task graph and skips configuration when nothing that influenced it has changed |
 | `org.gradle.jvmargs` | `-Xmx512m -XX:MaxMetaspaceSize=384m` | Replaces the daemon's JVM arguments entirely |
 
-- **Configuration cache.** Check compatibility first with Build Analyzer. The first build prints that no configuration cache is available; later builds print `Reusing configuration cache.` Gradle fails the build on configuration-cache problems by default; keep that. Google's page shows `org.gradle.configuration-cache.problems=warn` and warns to use it with care. Use it only for a diagnostic run, fix what it reports, then remove it.
+- **Configuration cache.** Check compatibility first with Build Analyzer. The first build prints that no configuration cache is available; later builds print `Reusing configuration cache.` Gradle fails the build on configuration-cache problems by default; keep that. Google's page shows `org.gradle.configuration-cache.problems=warn` and warns to use it with care. Use it only for a diagnostic run, fix what it reports, then remove it (stricter than Google; Gradle also treats warn mode as a temporary migration aid). Since Gradle 9.0 the configuration cache is Gradle's preferred mode, and Gradle plans to turn it on by default in Gradle 10.
 - **JVM arguments.** Because `org.gradle.jvmargs` replaces the defaults, always pass `-XX:MaxMetaspaceSize` and `-XX:+HeapDumpOnOutOfMemoryError` with it (Google cites Gradle issue #19750; use `MaxMetaspaceSize=1g` once you raise the heap). Try the parallel collector, since JDK 9+ defaults to G1. Raise `-Xmx` (4g, 6g, 8g) only when Build Analyzer shows garbage collection above about 15% of build time, and benchmark each step. The Kotlin compiler daemon has its own `kotlin.daemon.jvmargs`; tune it separately if Kotlin compilation runs short of memory.
 - **Jetifier.** Remove it after Build Analyzer's check confirms no dependency still uses the Support Library.
 - **R classes.** Non-transitive and non-constant R classes are AGP 8.0+ defaults. AGP 9 also compiles app modules against a non-final R class (`android.enableAppCompileTimeRClass`). Do not re-add old R class flags.
 
 ### Worth measuring, not defaults
 
-- `org.gradle.configuration-cache.parallel=true` loads and stores the configuration cache in parallel. It is incubating and not every build is compatible.
-- `org.gradle.isolated-projects=true` configures projects in parallel and also speeds up sync. It is incubating, Gradle does not yet recommend it for production, it requires configuration-cache compatibility, and plugins often need changes. Now in Android enables it. Try it on a branch with current Gradle, AGP and Android Studio.
+- `org.gradle.configuration-cache.parallel=true` stores the configuration cache entry in parallel; loading is always parallel. It gains most together with `org.gradle.parallel=true`. It is incubating and not every build is compatible.
+- `org.gradle.isolated-projects=true` configures projects in parallel and also speeds up sync. It is incubating, Gradle does not yet recommend it for production, it requires configuration-cache compatibility and turns the configuration cache on by itself (explicitly disabling the cache alongside it is an error), and plugins often need changes. Now in Android enables it. Try it on a branch with current Gradle, AGP and Android Studio.
 
 ### AGP 9 defaults that affect speed
 
@@ -215,7 +215,7 @@ buildCache {
 
 - Put the URL in `gradle.properties` or `~/.gradle/gradle.properties` and the credentials in CI secrets; never commit credentials. Credentials go over HTTP Basic auth, so use HTTPS. `isAllowInsecureProtocol` and `isAllowUntrustedServer` exist for exceptional setups only.
 - Use the same JDK version on CI and developer machines, or outputs from one will not match inputs on the other.
-- Invoke the tasks a change needs (`:feature:articles:testDebugUnitTest`) rather than a broad task with `-x` exclusions.
+- Invoke the tasks a change needs (`:feature:articles:testDebugUnitTest`) rather than a broad task with `-x` exclusions (stricter than Google).
 - Publish build scans from CI to follow cache hit rates and build time over time.
 
 ## 10. Checklist

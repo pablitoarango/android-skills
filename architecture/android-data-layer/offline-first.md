@@ -7,7 +7,9 @@ Source of truth: [Build an offline-first app](https://developer.android.com/topi
 An offline-first repository has at least two data sources:
 
 - **Local** (Room, DataStore): the **source of truth**. Everything the app reads comes from here.
-- **Network**: the real state on the server. Used only to keep the local copy up to date.
+- **Network**: the real state on the server. Used to keep the local copy up to date and for online-only writes. Only the repository talks to it.
+
+Sync can be custom (Room or files, your own network client, WorkManager reconciliation) for full control over schemas and conflict resolution, or managed (for example Cloud Firestore), where the SDK handles local caching, offline write queuing and bidirectional sync. The rest of this file covers the custom approach.
 
 ```
 data/
@@ -32,7 +34,8 @@ val authorUiState: StateFlow<AuthorUiState> =
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AuthorUiState.Loading)
 ```
 
-- When a network read fails, retry with **exponential backoff**, or queue it until connectivity returns.
+- `catch` only stops the crash; the upstream flow still completes. Use `retry` to keep collecting after an error.
+- When a network read fails, retry with **exponential backoff**, or queue it until connectivity returns. Retry connectivity errors, not unauthorized requests until credentials are fixed, and cap the number of retries.
 
 ## Writes
 
@@ -84,9 +87,8 @@ class SyncWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val topicRepository: TopicsRepository,
     private val newsRepository: NewsRepository,
-    @Dispatcher(IO) private val ioDispatcher: CoroutineDispatcher,
 ) : CoroutineWorker(appContext, workerParams) {
-    override suspend fun doWork(): Result = withContext(ioDispatcher) {
+    override suspend fun doWork(): Result = coroutineScope {
         val syncedSuccessfully = awaitAll(
             async { topicRepository.sync() },
             async { newsRepository.sync() },
@@ -95,6 +97,8 @@ class SyncWorker @AssistedInject constructor(
     }
 }
 ```
+
+`@HiltWorker` needs the Hilt WorkManager setup described in `SKILL.md` (section 6). Google's Now in Android sample instead enqueues a `DelegatingWorker`, which injects workers from feature modules without a custom WorkManager configuration.
 
 ## Conflict resolution
 

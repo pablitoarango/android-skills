@@ -5,7 +5,7 @@ description: "Repositories and data sources per Google's data layer guide: model
 
 # Android Data Layer
 
-Sources of truth: [Data layer](https://developer.android.com/topic/architecture/data-layer), [Offline-first](https://developer.android.com/topic/architecture/data-layer/offline-first).
+Sources of truth: [Data layer](https://developer.android.com/topic/architecture/data-layer), [Offline-first](https://developer.android.com/topic/architecture/data-layer/offline-first), [Hilt and WorkManager](https://developer.android.com/training/dependency-injection/hilt-jetpack#workmanager), [WorkManager custom configuration](https://developer.android.com/develop/background-work/background-tasks/persistent/configuration/custom-configuration).
 
 For offline-first reads, write strategies, synchronization and conflict resolution, read [`offline-first.md`](offline-first.md).
 
@@ -30,7 +30,7 @@ Repository (public)          one per data type; the only entry point
 - Each repository defines **one source of truth**. For offline-first data it is the local database.
 - Each data source works with exactly one source of data.
 - Name data sources by role, not technology: `NewsRemoteDataSource`, not `NewsRetrofitDataSource`.
-- Repositories may depend on other repositories when combining data; name such a class `<DataType>Manager` if it only coordinates (`UserManager`).
+- Repositories may depend on other repositories when combining data; such a class may optionally be named `<DataType>Manager` (`UserManager`).
 - ViewModels, use cases and composables never inject a DAO, Retrofit service, DataStore or data source.
 
 ```kotlin
@@ -87,7 +87,7 @@ The table assumes sources and repositories share a module. For separate network/
 ## 5. Threading
 
 - Classes that do blocking work move it to an **injected** dispatcher with `withContext`.
-- Room DAO `suspend`/`Flow` functions and Retrofit `suspend` functions are already main-safe. Do not wrap them in `withContext(io)` or `flowOn(io)`; reserve dispatcher switching for truly blocking work (file I/O, parsing large payloads, legacy blocking SDKs).
+- Room DAO `suspend`/`Flow` functions and Retrofit `suspend` functions are already main-safe, so wrapping them in `withContext(io)` or `flowOn(io)` is unnecessary. Switch dispatchers for truly blocking work (file I/O, parsing large payloads, legacy blocking SDKs).
 
 ```kotlin
 internal class NewsRemoteDataSource @Inject constructor(
@@ -152,6 +152,10 @@ class RefreshLatestNewsWorker @AssistedInject constructor(
 }
 ```
 
+Put enqueuing and cancelling in a task data source named after its data (`NewsTasksDataSource` wrapping `WorkManager`) that the repository depends on. Trigger startup work from an App Startup `Initializer` that calls the repository.
+
+`@HiltWorker` needs `androidx.hilt:hilt-work` plus `androidx.hilt:hilt-compiler` (KSP); see the [Hilt release page](https://developer.android.com/jetpack/androidx/releases/hilt). The `Application` must implement `Configuration.Provider` with an injected `HiltWorkerFactory`, and the default WorkManager initializer must be removed from the manifest ([custom configuration](https://developer.android.com/develop/background-work/background-tasks/persistent/configuration/custom-configuration)). Workers may only use `@Singleton` or unscoped bindings.
+
 Scope DI bindings to the lifetime of the data they hold: `@Singleton` for app-wide caches, a narrower component for flow-specific data, nothing for stateless classes.
 
 ## 7. Errors
@@ -183,6 +187,6 @@ Scope DI bindings to the lifetime of the data they hold: `@Singleton` for app-wi
 - [ ] Each repository has one source of truth.
 - [ ] Co-located data implementation types are `internal`; split modules expose a minimal repository-facing API. Mappers convert at the repository.
 - [ ] `suspend` for one-shot, `Flow` named `get...Stream()` for changes; all main-safe.
-- [ ] Dispatchers are injected and used only for blocking work.
+- [ ] Dispatchers are injected; blocking work is moved off the main thread.
 - [ ] Work that must outlive the screen uses the external scope; work that must survive process death uses WorkManager.
 - [ ] Errors propagate as exceptions or `Result` consistently; `CancellationException` is rethrown.

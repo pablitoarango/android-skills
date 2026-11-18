@@ -5,7 +5,7 @@ description: "Compose performance per Google's docs: R8 release builds, Baseline
 
 # Jetpack Compose performance
 
-Sources of truth: [Compose performance](https://developer.android.com/develop/ui/compose/performance), [Best practices](https://developer.android.com/develop/ui/compose/performance/bestpractices), [Phases](https://developer.android.com/develop/ui/compose/performance/phases), [Modifier phases](https://developer.android.com/develop/ui/compose/performance/modifier-phases), [Backwards writes](https://developer.android.com/develop/ui/compose/performance/backwards-write), [Stability](https://developer.android.com/develop/ui/compose/performance/stability), [Diagnose stability](https://developer.android.com/develop/ui/compose/performance/stability/diagnose), [Fix stability](https://developer.android.com/develop/ui/compose/performance/stability/fix), [Strong skipping](https://developer.android.com/develop/ui/compose/performance/stability/strongskipping), [Tooling](https://developer.android.com/develop/ui/compose/performance/tooling), [Composition tracing](https://developer.android.com/develop/ui/compose/tooling/tracing), [Recomposition counts](https://developer.android.com/develop/ui/compose/tooling/debug), [Baseline Profiles](https://developer.android.com/develop/ui/compose/performance/baseline-profiles), [Macrobenchmark](https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview), [Macrobenchmark metrics](https://developer.android.com/topic/performance/benchmarking/macrobenchmark-metrics), [JankStats](https://developer.android.com/topic/performance/jankstats).
+Sources of truth: [Compose performance](https://developer.android.com/develop/ui/compose/performance), [Best practices](https://developer.android.com/develop/ui/compose/performance/bestpractices), [Phases](https://developer.android.com/develop/ui/compose/performance/phases), [Modifier phases](https://developer.android.com/develop/ui/compose/performance/modifier-phases), [Backwards writes](https://developer.android.com/develop/ui/compose/performance/backwards-write), [Stability](https://developer.android.com/develop/ui/compose/performance/stability), [Diagnose stability](https://developer.android.com/develop/ui/compose/performance/stability/diagnose), [Fix stability](https://developer.android.com/develop/ui/compose/performance/stability/fix), [Strong skipping](https://developer.android.com/develop/ui/compose/performance/stability/strongskipping), [Tooling](https://developer.android.com/develop/ui/compose/performance/tooling), [Composition tracing](https://developer.android.com/develop/ui/compose/tooling/tracing), [Recomposition counts](https://developer.android.com/develop/ui/compose/tooling/debug), [Baseline Profiles](https://developer.android.com/develop/ui/compose/performance/baseline-profiles), [Macrobenchmark](https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview), [Macrobenchmark metrics](https://developer.android.com/topic/performance/benchmarking/macrobenchmark-metrics), [JankStats](https://developer.android.com/topic/performance/jankstats), [Create Baseline Profiles](https://developer.android.com/topic/performance/baselineprofiles/create-baselineprofile), [Compose compiler Gradle plugin reference](https://kotlinlang.org/api/kotlin-gradle-plugin/compose-compiler-gradle-plugin/org.jetbrains.kotlin.compose.compiler.gradle/-compose-compiler-gradle-plugin-extension/).
 
 Compose is fast by default. Most real problems are a misconfigured build or a handful of coding mistakes that force Compose to rerun phases it could skip. Work in this order: **configure, locate, understand by phase, change, confirm**. Do not optimize code that no tool has pointed at.
 
@@ -100,7 +100,7 @@ class FeedScrollBenchmark {
 
 ### JankStats
 
-`androidx.metrics:metrics-performance` reports per-frame jank from production: create a tracker with `JankStats.createAndTrack(window, listener)`, toggle `isTrackingEnabled` in `onResume`/`onPause`, and tag frames with the current screen through `PerformanceMetricsState.getHolderForHierarchy(view).state?.putState(...)`. The listener runs every frame on a non-UI thread and reuses its `FrameData`, so copy what you keep and return quickly.
+`androidx.metrics:metrics-performance` reports per-frame jank from production: create a tracker with `JankStats.createAndTrack(window, listener)`, toggle `isTrackingEnabled` in `onResume`/`onPause`, and tag frames with the current screen through `PerformanceMetricsState.getHolderForHierarchy(view).state?.putState(...)`. The listener runs every frame on the FrameMetrics thread (API 24 and higher; the main thread on API 23 and lower) and reuses its `FrameData`, so copy what you keep and return quickly. In Compose, get the holder with `remember(view) { PerformanceMetricsState.getHolderForHierarchy(view) }` where `view = LocalView.current`, and set states from a `LaunchedEffect` (for example collecting `snapshotFlow { listState.isScrollInProgress }`) rather than the composable body, so tagging does not cause recomposition.
 
 ## 3. Understand the problem by phase
 
@@ -114,14 +114,14 @@ Every frame runs **composition** (what to show), **layout** (measure, then place
 | Many list items recompose when one item changes or moves | Missing lazy keys | 4.2 |
 | Recomposition on every scroll pixel for a value that changes rarely | Missing `derivedStateOf` | 4.5 |
 | Composable recomposes although its inputs look equal | Unstable parameter or new instances each time | 4.6 |
-| Long measure slices in lists | Intrinsic measurements, subcomposition, nested layouts | 4.7 |
+| Long measure slices in lists | Subcomposition, nested layouts | 4.7 |
 | Slow first launch or first use of a screen | Code interpreted and JIT-compiled | Baseline Profiles (5) |
 
 ## 4. Apply the documented fixes
 
 ### 4.1 Keep the composable body cheap
 
-A composable can run on every animation frame. Do sorting, filtering, mapping and formatting in the ViewModel when possible; for purely presentational work, cache it with `remember` keyed on its inputs.
+A composable can run on every animation frame. Do sorting, filtering, mapping and formatting in the ViewModel when possible; for purely presentational work, cache it with `remember` keyed on its inputs. `remember` compares its keys with `equals` on every recomposition, so use it only for expensive work or allocations, and do not key a cheap calculation on a large collection or a type with a costly `equals`.
 
 ```kotlin
 @Composable
@@ -174,7 +174,7 @@ A backwards write changes state after an earlier phase (or an earlier scope in t
 val showScrollToTop by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
 ```
 
-Do not use it when the result changes as often as its inputs (for example concatenating two text fields). Effect-related usage is in `compose-side-effects`.
+Do not pass the states read inside `derivedStateOf` as `remember` keys; that recreates it on every change. Do not use it when the result changes as often as its inputs (for example concatenating two text fields). Effect-related usage is in `compose-side-effects`.
 
 ### 4.6 Stability, only when tools show skipping fails
 
@@ -184,8 +184,8 @@ Fix in this order:
 
 1. **Stop producing new instances** for unchanged data (for example, a mapper that allocates new UI models on every emission). When a source such as Room re-emits equal but new objects, stable types compared with `equals` avoid the recomposition.
 2. **Make the class immutable**: `val` properties of immutable types; use Compose state (`mutableStateOf`) for anything that must change.
-3. **Collections**: `List`, `Set` and `Map` are always inferred unstable. Use kotlinx immutable collections (`ImmutableList`, `persistentListOf()`), or a wrapper class annotated `@Immutable`.
-4. **Types you do not own or modules without the Compose compiler** (for example `java.time.LocalDateTime` or a data module's models): list them in a stability configuration file, enable the Compose compiler (runtime dependency only) on that module, or map them to UI models.
+3. **Collections**: `List`, `Set` and `Map` are always inferred unstable, which under strong skipping is usually fine: passing the same instance skips. Keep the instance unchanged across emissions (cache transformations in the ViewModel or with `remember`). `ImmutableList`, an `@Immutable` wrapper or a stability configuration rule makes Compose compare every element with `equals` on each recomposition, which can cost more than recomposing in large or lazy lists; use them only when the instance cannot be preserved and a benchmark shows a gain.
+4. **Types you do not own or modules without the Compose compiler** (for example `java.time.LocalDateTime` or a data module's models): these already skip by instance. Only when a source re-creates equal instances of small, flat classes with a cheap `equals`, list them in a stability configuration file, enable the Compose compiler (runtime dependency only) on that module, or map them to UI models.
 
 ```kotlin
 composeCompiler {
@@ -193,15 +193,15 @@ composeCompiler {
 }
 ```
 
-   `stabilityConfigurationFile` (singular) is deprecated in the Compose compiler Gradle plugin. The file takes one fully qualified name or wildcard (`com.example.data.*`, `com.example.data.**`) per line.
+   `stabilityConfigurationFile` (singular) is deprecated with error in the Compose compiler Gradle plugin. The file takes one fully qualified name or wildcard (`com.example.data.*`, `com.example.data.**`) per line.
 
-5. **`@Immutable` / `@Stable`** only when the class honors the contract. The compiler trusts them without checking; a wrong annotation makes UI stop updating.
+5. **`@Immutable` / `@Stable`** only when the class honors the contract, is small with a cheap `equals`, and new equal instances are actually being created. Do not annotate classes already inferred stable, or models that hold collections, especially in lazy layouts. The compiler trusts the annotations without checking; a wrong one makes UI stop updating.
 
 Leave alone composables that rarely recompose, that only call skippable children, or whose many parameters have expensive `equals`. `@NonSkippableComposable` and `@DontMemoize` opt out of strong skipping when needed.
 
 ### 4.7 Keep layout passes cheap
 
-- Avoid intrinsic measurements (`IntrinsicSize`) and subcomposition inside large lists.
+- Avoid subcomposition (`BoxWithConstraints`, `SubcomposeLayout`) when a custom `Layout` can do the job; it has a cost and can usually be avoided.
 - Prefer one custom `Layout` or `FlowRow`/`LazyVerticalGrid` over nested rows and columns that recompose to rearrange.
 - For list items or composables that recompose every frame, hoist constant modifier chains to a top-level `val` so they are not reallocated. Do not restructure ordinary chains without evidence.
 - Size images to their display size and give placeholders a fixed size (`compose-images`).

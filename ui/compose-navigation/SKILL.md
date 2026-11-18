@@ -5,11 +5,11 @@ description: "Navigation 3 per Google's docs: NavKey back stacks, NavDisplay, en
 
 # Navigation 3
 
-Sources of truth: [Navigation 3 guide](https://developer.android.com/guide/navigation/navigation-3) and its pages on [basics](https://developer.android.com/guide/navigation/navigation-3/basics), [saving state](https://developer.android.com/guide/navigation/navigation-3/save-state), [decorators](https://developer.android.com/guide/navigation/navigation-3/naventrydecorators), [scenes](https://developer.android.com/guide/navigation/navigation-3/scenes), [metadata](https://developer.android.com/guide/navigation/navigation-3/metadata), [animations](https://developer.android.com/guide/navigation/navigation-3/animate-destinations), [results](https://developer.android.com/guide/navigation/navigation-3/return-results), [deep links](https://developer.android.com/guide/navigation/navigation-3/deep-links), [modularization](https://developer.android.com/guide/navigation/navigation-3/modularize) and [migration](https://developer.android.com/guide/navigation/navigation-3/migration-guide); the [release notes](https://developer.android.com/jetpack/androidx/releases/navigation3); the official [nav3-recipes](https://github.com/android/nav3-recipes). Google strongly recommends a **single-activity app using Navigation 3**.
+Sources of truth: [Navigation 3 guide](https://developer.android.com/guide/navigation/navigation-3) and its pages on [basics](https://developer.android.com/guide/navigation/navigation-3/basics), [saving state](https://developer.android.com/guide/navigation/navigation-3/save-state), [decorators](https://developer.android.com/guide/navigation/navigation-3/naventrydecorators), [scenes](https://developer.android.com/guide/navigation/navigation-3/scenes), [metadata](https://developer.android.com/guide/navigation/navigation-3/metadata), [animations](https://developer.android.com/guide/navigation/navigation-3/animate-destinations), [results](https://developer.android.com/guide/navigation/navigation-3/return-results), [deep links](https://developer.android.com/guide/navigation/navigation-3/deep-links), [modularization](https://developer.android.com/guide/navigation/navigation-3/modularize) and [migration](https://developer.android.com/guide/navigation/navigation-3/migration-guide); the [release notes](https://developer.android.com/jetpack/androidx/releases/navigation3); the official [nav3-recipes](https://github.com/android/nav3-recipes); the [DialogSceneStrategy reference](https://developer.android.com/reference/kotlin/androidx/navigation3/scene/DialogSceneStrategy); the [architecture recommendations](https://developer.android.com/topic/architecture/recommendations). Google strongly recommends a **single-activity app using Navigation 3** (architecture recommendations).
 
 In Navigation 3 you own the back stack: it is an observable list of **keys**, and `NavDisplay` renders the entries for those keys. There is no `NavController`, no navigation graph and no route strings.
 
-Core APIs are stable since **1.1**. `ResultEventBus` and the deep link matcher APIs arrive in **1.2**. Read the release notes before editing Gradle files to get current versions and to check whether 1.2 is stable yet; do not copy versions from samples.
+Core APIs are stable since **1.0**; the metadata DSL, the `sceneStrategies` list and `SceneDecoratorStrategy` need **1.1**; `ResultEventBus` and the deep link matcher APIs are stable since **1.2**. Read the release notes before editing Gradle files to get current versions; do not copy versions from samples.
 
 ## 1. Dependencies
 
@@ -144,6 +144,8 @@ NavDisplay(
 
 Bottom sheets are not in the library; copy `BottomSheetSceneStrategy` from the bottom sheet recipe.
 
+Put overlay strategies (`DialogSceneStrategy`, bottom sheets) before non-overlay strategies such as list-detail in `sceneStrategies`.
+
 For list-detail on larger windows, use the Material adaptive strategy; on narrow windows it falls back to one pane:
 
 ```kotlin
@@ -221,6 +223,8 @@ fun ComposeMessageRoute(viewModel: ComposeMessageViewModel = hiltViewModel()) {
 ```
 
 - Senders and receivers must both use the type-derived key or both use the same explicit `resultKey`. Use explicit keys for common types (`String`) or when two pickers return the same type.
+- After handling a one-time result in `ResultEffect`, call `resultBus.removeResult(resultKey)` (or `removeResult<T>()`) so the bus does not deliver it again when the receiver re-enters composition.
+- To send or receive results outside entries (app bar, navigation drawer, DI graph), create the bus with `rememberResultEventBus()` and pass it to `rememberResultEventBusNavEntryDecorator(resultEventBus)`.
 - The bus is in memory: results do not survive process death. Results that must survive belong in a key, a `SavedStateHandle` of a scoped ViewModel, or `rememberSaveable`.
 
 ## 8. Modular features and navigator classes
