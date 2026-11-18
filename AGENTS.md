@@ -37,3 +37,8 @@ Agent skills for Android development. Each skill is `<category>/<skill-name>/SKI
 
 1. `python3 tools/validate_skills.py` must pass. CI runs it on every push and pull request.
 2. After adding, renaming or removing a skill, run `./install.sh` to refresh the symlinks, update `README.md`, and update references to the old name.
+
+## Releases
+
+- Versions are `YYYY.MM.DD.PATCH`: the release date, then a patch number that starts at 0 and increases for each further release on the same day. Example: `2026.11.18.0`.
+- Set `version` in `.claude-plugin/plugin.json`, then tag the release commit `v<version>` and create a GitHub release from that tag.
