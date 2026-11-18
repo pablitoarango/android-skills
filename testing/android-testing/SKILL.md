@@ -19,11 +19,12 @@ Keep a pyramid: many small, fast JVM tests; fewer large tests. Pick the lowest s
 - Unit tests for **ViewModels**, including every `StateFlow` they expose.
 - Unit tests for **repositories and data sources** (and use cases, when present).
 - **UI navigation tests** that guard against regressions in screen-to-screen flows.
+- **Performance tests** with Macrobenchmark for app startup and UI rendering (`compose-performance`).
 
 | Scope | Covers | Runs on | When |
 |---|---|---|---|
 | Unit | ViewModels, use cases, repositories, mappers, validators | Local JVM | Every commit |
-| Component | A composable or screen in isolation, screenshots | JVM (Robolectric, Layoutlib) | Every commit |
+| Component | A composable or screen in isolation, screenshots | JVM (Robolectric, Layoutlib), emulator | Every commit |
 | Feature | Several components together; network data sources vs MockWebServer; Room DAOs | JVM, emulator (Room: device, section 6) | Before merge |
 | Application | Full app flows on a debuggable build, configuration changes | Emulator or device | After merge |
 | Release candidate | Critical user journeys, performance, on a minified release build | Devices | Before release |
@@ -56,7 +57,7 @@ class FakeNewsRepository : NewsRepository {
 
 Interfaces and constructor injection make fakes easy to substitute (`android-architecture`); they are design choices, not technical prerequisites for every fake. Framework-provided fakes and substitutable class implementations can also work.
 
-Local tests run against a stub `android.jar` that throws `Method ... not mocked`. Move framework calls out of the class under test, or use Robolectric. Avoid `unitTests.isReturnDefaultValues = true`; Google calls it a last resort because null and zero defaults can hide failures.
+Local tests run against a stub `android.jar` that throws `Method ... not mocked`. Prefer moving framework calls out of the class under test; use Robolectric for unit tests only as a last resort, such as legacy code or APIs tied to Android classes. Avoid `unitTests.isReturnDefaultValues = true`; Google calls it a last resort because null and zero defaults can hide failures.
 
 ## 3. Coroutine test setup
 
@@ -212,7 +213,7 @@ Replacing bindings, in order of preference:
 |---|---|---|
 | `@TestInstallIn(components = [...], replaces = [ProdModule::class])` | Every test in the source set | Preferred; no per-class component generation |
 | `@UninstallModules(ProdModule::class)` + nested `@InstallIn` module | One test class | Generates a component per class; slows builds |
-| `@BindValue @JvmField val x: Type = Fake()` | One test class | Binds a field directly; `@BindValueIntoSet` / `@BindValueIntoMap` for multibindings |
+| `@BindValue @JvmField val x: Type = Fake()` | One test class | Binds a field directly; to replace a production binding, combine with `@UninstallModules(ProdModule::class)` (same per-class cost). `@BindValueIntoSet` / `@BindValueIntoMap` for multibindings |
 
 `@UninstallModules` removes only `@InstallIn` modules, never `@TestInstallIn` ones.
 
@@ -333,8 +334,6 @@ fun CartSummaryWithPromoPreview() {
 | `./gradlew test<Suite><Target><Variant>TestSuite` | Renders again and compares; report in `build/reports/tests/<taskName>/index.html` |
 
 - Projects still on the deprecated plugin use `updateDebugScreenshotTest` and `validateDebugScreenshotTest`; migrate them to test suites.
-- Renaming a `@PreviewTest` function orphans its reference images; regenerate them.
-- If the test JVM runs out of memory, raise `android.compose.screenshot.maxHeapSize` in `gradle.properties`.
 
 ### Roborazzi
 
@@ -388,7 +387,7 @@ class CartSummaryScreenshotTest {
 | `./gradlew verifyRoborazziDebug` | Fails the build when an image differs |
 | `./gradlew verifyAndRecordRoborazziDebug` | Verifies, then records the new baseline where images differ |
 
-Each task also works as `./gradlew testDebugUnitTest -Proborazzi.test.<record|compare|verify>=true`. Reports are in `build/reports/roborazzi/index.html`.
+Each task also works as `./gradlew testDebugUnitTest -Proborazzi.test.<record|compare|verify>=true`; verify-and-record sets both `roborazzi.test.verify=true` and `roborazzi.test.record=true`. Reports are in `build/reports/roborazzi/index.html`.
 
 ## 9. Running tests
 
@@ -402,7 +401,7 @@ Screenshot tasks are listed in section 8. For emulators and Gradle Managed Devic
 
 ## 10. Checklist
 
-- [ ] Every ViewModel, repository and data source has unit tests; navigation flows have UI tests.
+- [ ] Every ViewModel, repository and data source has unit tests; navigation flows have UI tests; startup and rendering have Macrobenchmark tests.
 - [ ] Fakes are preferred; mocks verify meaningful interactions when appropriate.
 - [ ] ViewModel tests use `MainDispatcherRule` and assert on `StateFlow.value`; `WhileSubscribed` flows have a `backgroundScope` collector.
 - [ ] One test scheduler per test.

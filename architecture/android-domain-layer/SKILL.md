@@ -5,23 +5,23 @@ description: "Use cases per Google's domain layer guide: when to add one, naming
 
 # Android Domain Layer
 
-Sources of truth: [Domain layer](https://developer.android.com/topic/architecture/domain-layer). Rules marked **(stricter than Google)** are deliberate choices.
+Sources of truth: [Domain layer](https://developer.android.com/topic/architecture/domain-layer), [Architecture recommendations](https://developer.android.com/topic/architecture/recommendations). Rules marked **(stricter than Google)** are deliberate choices.
 
 ## 1. Decide whether a use case is needed
 
-The domain layer is **optional**. Add a use case only when at least one is true:
+The domain layer is **optional**; Google rates it recommended in big apps. Add a use case only when at least one is true:
 
 - The same business logic is needed by **more than one ViewModel**.
 - The logic makes a ViewModel **hard to read or test** (combining several repositories, multi-step rules).
 
 Otherwise the ViewModel calls the repository directly. A use case that only forwards one repository call adds a class without adding value.
 
-Complex computations that benefit from caching usually belong in the **data layer**, not in a use case.
+Complex computations that benefit from caching usually belong in the **data layer**, not in a use case. When Room is the source of truth and the use case would only join related entities, write a Room relationship query in a repository (`NewsWithAuthorsRepository`) instead.
 
 ## 2. Shape of a use case
 
 - One use case, one responsibility.
-- Name: **verb in present tense + noun + `UseCase`**: `FormatDateUseCase`, `LogOutUserUseCase`, `GetLatestNewsWithAuthorsUseCase`.
+- Name: **verb in present tense + optional noun + `UseCase`**: `FormatDateUseCase`, `LogOutUserUseCase`, `GetLatestNewsWithAuthorsUseCase`.
 - Expose `operator fun invoke` so callers use it like a function; overloads may support different inputs to the same responsibility.
 - Suspending one-shot work uses `suspend operator fun invoke(...)`; synchronous work can use a regular `invoke`, and observable results return `Flow`.
 - **Main-safe**: if the use case does blocking or CPU-heavy work, it moves that work to an **injected** dispatcher.
@@ -75,12 +75,13 @@ class ForYouViewModel @Inject constructor(
 ## 3. Dependencies
 
 - A use case may depend on **repositories** and on **other use cases**.
-- The data layer never depends on the domain layer; repository interfaces belong to the data layer.
+- The domain layer depends on the data layer, never the other way around.
 - Nothing in the domain layer depends on the UI layer.
 
 ## 4. Lifetime and injection
 
 - Use cases have no lifecycle of their own; they live as long as the class that uses them.
+- Callers are not limited to ViewModels: services, the `Application` class, and the UI layer of other form factors (TV, Wear) sharing the codebase can reuse them.
 - **Do not scope** use cases in Hilt (no `@Singleton`, `@ViewModelScoped`). A new instance per consumer is expected.
 
 ## 5. Restricting data layer access
@@ -99,7 +100,7 @@ Google describes two options:
 ## 7. Checklist
 
 - [ ] The use case is shared by several ViewModels or removes real complexity.
-- [ ] Named verb + noun + `UseCase`, exposes `operator fun invoke` for one responsibility.
+- [ ] Named verb + optional noun + `UseCase`, exposes `operator fun invoke` for one responsibility.
 - [ ] Main-safe; dispatchers are injected.
 - [ ] Holds no mutable state and is not scoped.
 - [ ] Depends only on repositories and other use cases; no `android.*` imports.

@@ -5,7 +5,7 @@ description: "Retrofit and OkHttp per the Retrofit docs and Google's data layer 
 
 # Retrofit and OkHttp in the Data Layer
 
-Sources of truth: [Data layer](https://developer.android.com/topic/architecture/data-layer), [Connect to the network](https://developer.android.com/develop/connectivity/network-ops/connecting), [Network security configuration](https://developer.android.com/privacy-and-security/security-config), [Retrofit documentation](https://lysine.dev/retrofit/), [Retrofit repository](https://github.com/lysine-dev/retrofit), [OkHttp logging interceptor](https://github.com/lysine-dev/okhttp/tree/main/okhttp-logging-interceptor), [OkHttp documentation](https://lysine.dev/okhttp/), [MockWebServer](https://github.com/lysine-dev/okhttp/tree/main/mockwebserver).
+Sources of truth: [Data layer](https://developer.android.com/topic/architecture/data-layer), [Connect to the network](https://developer.android.com/develop/connectivity/network-ops/connecting), [Network security configuration](https://developer.android.com/privacy-and-security/security-config), [Retrofit documentation](https://lysine.dev/retrofit/), [Retrofit repository](https://github.com/lysine-dev/retrofit), [Retrofit changelog](https://github.com/lysine-dev/retrofit/blob/trunk/CHANGELOG.md), [OkHttp logging interceptor](https://github.com/lysine-dev/okhttp/tree/main/okhttp-logging-interceptor), [OkHttp documentation](https://lysine.dev/okhttp/), [MockWebServer](https://github.com/lysine-dev/okhttp/tree/main/mockwebserver).
 
 Read versions from [Retrofit releases](https://github.com/lysine-dev/retrofit/releases), the [OkHttp changelog](https://github.com/lysine-dev/okhttp/blob/main/CHANGELOG.md) and [kotlinx.serialization releases](https://github.com/Kotlin/kotlinx.serialization/releases). Never hardcode them in code samples.
 
@@ -46,6 +46,8 @@ internal class NewsRemoteDataSource @Inject constructor(
 
 Google requires data sources and repositories to be main-safe. Retrofit `suspend` functions enqueue the call on OkHttp's dispatcher and parse the response there, so they are already main-safe: **do not wrap them in `withContext(ioDispatcher)`**. Google's `withContext` example applies to a blocking API; use an injected dispatcher only for blocking work such as `Call.execute()`, reading a `@Streaming` body, or writing a download to disk (`android-coroutines`).
 
+Retrofit builds the request on the calling thread, so the kotlinx.serialization converter encodes the `@Body` there (it has no `withStreaming()` option). This only matters for very large request bodies; build those in the data source on an injected dispatcher.
+
 Cancelling the calling coroutine cancels the HTTP call.
 
 ## 2. Dependencies
@@ -82,7 +84,7 @@ dependencies {
 - Retrofit 3 requires Android API 21+ and depends on OkHttp (3.0.0 moved from OkHttp 3.14 to 4.12, so Retrofit now pulls in Kotlin transitively). Check the Retrofit changelog for the OkHttp version it requires before choosing a different OkHttp BOM.
 - The kotlinx.serialization converter is a first-party Retrofit module since 2.10.0 (`retrofit2.converter.kotlinx.serialization.asConverterFactory`). The older `com.jakewharton.retrofit` artifact is superseded; replace it.
 - Moshi, Gson, Jackson, Protobuf, Wire and Scalars converters also exist. For Kotlin apps prefer kotlinx.serialization, which Google's samples use.
-- Declare `<uses-permission android:name="android.permission.INTERNET" />`. It is a normal permission granted at install.
+- Declare `<uses-permission android:name="android.permission.INTERNET" />` and `<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />`, as Google's networking guide requires. Both are normal permissions granted at install.
 
 ## 3. Hilt setup
 
@@ -152,7 +154,7 @@ Endpoint paths resolve against the base URL like links on a web page:
 | `https://example.com/api/` | `/news/latest` | `https://example.com/news/latest` (base path dropped) |
 | `https://example.com/api/` | `https://cdn.example.com/a` | `https://cdn.example.com/a` |
 
-- End base URLs with `/` (Retrofit enforces it) and write endpoints **without** a leading `/`.
+- End base URLs with `/` (Retrofit enforces it) and write endpoints **without** a leading `/`, as Retrofit's docs do. Google's networking sample uses `@GET("/users/{id}")`, which only works when the base URL has no path.
 - Take the base URL from build configuration (`buildConfigField` per build type or flavor), not string literals in classes.
 - Use `@Url` for server-provided absolute URLs, such as pagination `next` links.
 
@@ -377,7 +379,7 @@ internal class DefaultRecipeRepository @Inject constructor(
 ## 8. Security
 
 - Send all traffic over HTTPS and minimize the personal data sent (Google's networking guide).
-- Cleartext HTTP is blocked by default when targeting API 28+. Do not set `cleartextTrafficPermitted="true"` globally. If a local development server needs HTTP, allow only its domain, in a debug-only network security config.
+- Cleartext HTTP is blocked by default when targeting API 28+. Do not set `cleartextTrafficPermitted="true"` globally. If a local development server needs HTTP, allow only its domain, in a debug-only network security config. From Android 17 (API 37), `localhost` and loopback addresses get an implicit config that already allows cleartext; the emulator's `10.0.2.2` host alias still needs the opt-in.
 - Trust debug-only certificate authorities (proxies, local servers) with `<debug-overrides>` in the network security configuration, not code that disables TLS checks.
 - Never ship a custom `TrustManager` or `HostnameVerifier` that accepts everything.
 - If you pin certificates, always include a backup pin, and understand the trade-off of an expiration date.

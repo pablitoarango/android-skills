@@ -5,14 +5,14 @@ description: "ViewModels and UI state per Google's UI layer guide: StateFlow wit
 
 # Android ViewModel and UI State
 
-Sources of truth: [UI layer](https://developer.android.com/topic/architecture/ui-layer), [State production](https://developer.android.com/topic/architecture/ui-layer/state-production), [UI events](https://developer.android.com/topic/architecture/ui-layer/events), [State holders](https://developer.android.com/topic/architecture/ui-layer/stateholders).
+Sources of truth: [UI layer](https://developer.android.com/topic/architecture/ui-layer), [State production](https://developer.android.com/topic/architecture/ui-layer/state-production), [UI events](https://developer.android.com/topic/architecture/ui-layer/events), [State holders](https://developer.android.com/topic/architecture/ui-layer/stateholders), [ViewModel overview](https://developer.android.com/topic/libraries/architecture/viewmodel), [Architecture recommendations](https://developer.android.com/topic/architecture/recommendations), [Text input](https://developer.android.com/develop/ui/compose/text/user-input).
 
 The core idea: **state is; events happen.** The ViewModel turns inputs (repository data, user actions) into one observable UI state. Everything the UI needs to render, including messages and navigation triggers, is part of that state.
 
 ## 1. Role and boundaries
 
-- A ViewModel is the **business logic state holder for one screen** (a navigation destination). Use it only in screen-level composables.
-- Reusable components use plain state holder classes (`compose-ui`), never a ViewModel.
+- A ViewModel is the **business logic state holder for one screen** (a navigation destination). Use it in screen-level composables. To scope one to a composable's call site, or to each item of a `LazyList` or `Pager`, use `rememberViewModelStoreOwner()` or `rememberViewModelStoreProvider()` (see the [Lifecycle release notes](https://developer.android.com/jetpack/androidx/releases/lifecycle)).
+- Simple reusable components use plain state holder classes (`compose-ui`).
 - ViewModels hold **no** `Context`, `Activity`, `Resources`, `View`, or lifecycle types. Extend `ViewModel`, never `AndroidViewModel`.
 - Business logic is delegated to repositories, or to use cases when reused or complex.
 - The screen composable reads state and passes plain values and lambdas down. **Never pass the ViewModel to child composables.**
@@ -20,7 +20,7 @@ The core idea: **state is; events happen.** The ViewModel turns inputs (reposito
 ## 2. UI state
 
 - Name it `<Functionality>UiState`.
-- Make it immutable: a `data class` with `val`s, or a `sealed interface` for mutually exclusive states. A read-only `List` can still have a mutable alias: publish owned snapshots or persistent immutable collections, and keep their elements immutable too.
+- Make it immutable: a `data class` with `val`s, or a `sealed interface` for mutually exclusive states. Never mutate a list or object after it has been emitted in UI state; emit a new instance instead.
 - Expose **one** `uiState: StateFlow<...>` per screen. Use a second stream only for data that is truly unrelated and changes independently.
 - Derive values instead of storing duplicates:
 
@@ -77,7 +77,7 @@ class InterestsViewModel @Inject constructor(
 }
 ```
 
-- `WhileSubscribed(5_000)` stops upstream work 5 seconds after the UI stops collecting, and survives configuration changes. Use `SharingStarted.Lazily` only when the pipeline must keep running while the screen is off-screen (for example a tab kept in memory).
+- `WhileSubscribed(5_000)` stops upstream work 5 seconds after the UI stops collecting, and survives configuration changes. Use `SharingStarted.Lazily` when the pipeline must stay active as long as the user might return, for example while the screen is on the back stack or in an off-screen tab.
 
 ### One-shot inputs only: private `MutableStateFlow`
 
@@ -87,18 +87,17 @@ class AddEditTaskViewModel @Inject constructor(
     private val tasksRepository: TasksRepository,
 ) : ViewModel() {
 
+    val title = TextFieldState()
+    val description = TextFieldState()
+
     private val _uiState = MutableStateFlow(AddEditTaskUiState())
     val uiState: StateFlow<AddEditTaskUiState> = _uiState.asStateFlow()
-
-    fun updateTitle(newTitle: String) {
-        _uiState.update { it.copy(title = newTitle) }
-    }
 
     fun saveTask() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                tasksRepository.saveTask(Task(uiState.value.title, uiState.value.description))
+                tasksRepository.saveTask(Task(title.text.toString(), description.text.toString()))
                 _uiState.update { it.copy(isLoading = false, isTaskSaved = true) }
             } catch (e: IOException) {
                 _uiState.update { it.copy(isLoading = false, userMessage = UserMessage.SaveFailed) }
@@ -110,6 +109,7 @@ class AddEditTaskViewModel @Inject constructor(
 
 - Always change state with `update { }`, which is atomic. Do not write `_uiState.value = _uiState.value.copy(...)`.
 - Never expose the `MutableStateFlow`.
+- For text input, hold a `TextFieldState` in the ViewModel and pass it to `TextField(state = ...)` instead of copying each keystroke into the `StateFlow`.
 
 ### Mixed inputs: turn one-shot results into a stream, then `combine`
 
@@ -144,7 +144,7 @@ With Navigation 3, the ViewModel receives its navigation key through assisted in
 ### Starting work
 
 - **Do not launch coroutines in `init {}`.** Prefer `stateIn`, which starts lazily when the UI subscribes.
-- When a one-time load cannot be a stream, expose an idempotent `@MainThread fun initialize()` guarded by a flag and call it from a `LaunchedEffect(Unit)`.
+- When a one-time load cannot be a stream, expose an idempotent `@MainThread fun initialize()` guarded by a flag and call it from the UI thread.
 - Work that must finish even if the user leaves, or takes longer than a few seconds, belongs in the data layer (external scope) or WorkManager, not `viewModelScope`.
 
 ## 4. Events
@@ -258,7 +258,7 @@ viewLifecycleOwner.lifecycleScope.launch {
 
 ## 7. Checklist
 
-- [ ] Screen-level only; no `Context`/`Resources`/`AndroidViewModel`; never passed to child composables.
+- [ ] Screen-level (or call-site scoped with `rememberViewModelStoreOwner`); no `Context`/`Resources`/`AndroidViewModel`; never passed to child composables.
 - [ ] One immutable `<Functionality>UiState` exposed as `StateFlow`.
 - [ ] Streams use `stateIn(viewModelScope, WhileSubscribed(5_000), initial)`.
 - [ ] Mutable state is private and changed with `update { }`.

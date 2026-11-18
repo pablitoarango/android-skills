@@ -190,7 +190,7 @@ NavDisplay(
 )
 ```
 
-Add `DialogSceneStrategy` only if there are dialog destinations, and append any other strategies (bottom sheet, list-detail).
+Add `DialogSceneStrategy` only if there are dialog destinations. Keep overlay strategies (dialog, bottom sheet) first and append non-overlay strategies such as list-detail after them.
 
 ## 7. Migrate deep links
 
